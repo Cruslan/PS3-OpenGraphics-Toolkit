@@ -1,6 +1,10 @@
 # Build output directories
 build/
 testsuite/build/
+release/
+dist/
+*.tar.gz
+*.zip
 
 # Binaries and object files
 *.o
