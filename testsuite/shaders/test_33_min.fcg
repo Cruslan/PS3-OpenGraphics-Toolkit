@@ -1,0 +1,30 @@
+// =============================================================================
+// PS3 RSX Test 33: min (Shader Model 3.0 Clamping & Interpolation)
+// Hardware MIN instruction extracting geometric intersection of two moving spotlights
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float2 p1 = float2(-0.3 + sin(t * 2.0) * 0.2, 0.0);
+    float2 p2 = float2( 0.3 - sin(t * 2.0) * 0.2, 0.0);
+    
+    float d1 = max(0.0, 1.0 - length(input.uv - p1) * 2.0);
+    float d2 = max(0.0, 1.0 - length(input.uv - p2) * 2.0);
+    
+    // Hardware MIN computes intersection
+    float inter = min(d1, d2);
+    float3 col = float3(inter * 1.0, inter * 0.8, inter * 0.2) + float3(d1 * 0.2, 0.0, d2 * 0.2);
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

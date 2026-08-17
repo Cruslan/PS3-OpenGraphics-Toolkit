@@ -1,0 +1,28 @@
+// =============================================================================
+// PS3 RSX Test 42: dot (4D) (Shader Model 3.0 Vector Algebra)
+// Hardware DP4 4D dot product evaluating 4D homogeneous transformation projection slice
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float4 v4 = float4(input.uv.x, input.uv.y, sin(t), cos(t));
+    float4 hyper_plane = float4(0.5, -0.5, 0.707, -0.707);
+    
+    // Hardware DP4
+    float d4 = dot(v4, hyper_plane);
+    float wave = sin(d4 * 8.0) * 0.5 + 0.5;
+    
+    float3 col = float3(wave, d4 * 0.5 + 0.5, 1.0 - wave);
+    output.color = float4(col, 1.0);
+    return output;
+}

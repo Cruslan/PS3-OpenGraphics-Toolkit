@@ -1,0 +1,27 @@
+// =============================================================================
+// PS3 RSX Test 39: smoothstep (Shader Model 3.0 Clamping & Interpolation)
+// Hermite cubic interpolation generating anti-aliased luminous circular ring
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float d = length(input.uv);
+    float r = 0.5 + 0.2 * sin(t * 2.0);
+    
+    // Hermite smoothstep for outer and inner borders
+    float ring = smoothstep(r - 0.1, r, d) - smoothstep(r, r + 0.1, d);
+    float3 col = float3(ring * 0.2, ring * 0.9, ring * 1.0);
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

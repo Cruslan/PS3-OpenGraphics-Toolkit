@@ -1,0 +1,25 @@
+// =============================================================================
+// PS3 RSX Test 51: sge / >= (Shader Model 3.0 Relational Logic)
+// Hardware SGE (Set on Greater or Equal) evaluating circular threshold mask
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float radius = 0.5 + 0.2 * sin(t * 2.5);
+    // Hardware SGE: (length(uv) >= radius)
+    bool is_ge = length(input.uv) >= radius;
+    
+    float3 col = is_ge ? float3(0.2, 0.8, 0.4) : float3(0.8, 0.3, 0.9);
+    output.color = float4(col, 1.0);
+    return output;
+}

@@ -1,0 +1,17 @@
+VERT
+# Basic Vertex Transformation Shader
+DCL IN[0], POSITION
+DCL IN[1], COLOR
+DCL CONST[0], ModelViewProj0
+DCL CONST[1], ModelViewProj1
+DCL CONST[2], ModelViewProj2
+DCL CONST[3], ModelViewProj3
+DCL OUT[0], POSITION
+DCL OUT[1], COLOR
+
+DP4 OUT[0].x, IN[0], CONST[0]
+DP4 OUT[0].y, IN[0], CONST[1]
+DP4 OUT[0].z, IN[0], CONST[2]
+DP4 OUT[0].w, IN[0], CONST[3]
+MOV OUT[1], IN[1]
+END

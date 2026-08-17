@@ -1,0 +1,27 @@
+// =============================================================================
+// PS3 RSX Test 49: faceforward (Shader Model 3.0 Optics & Physics)
+// Conditional normal orientation flipping surface normals to face the camera
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float3 normal = normalize(float3(input.uv.x, input.uv.y, 0.5));
+    float3 view_dir = normalize(float3(sin(t * 2.0), 0.0, -1.0));
+    
+    // Native faceforward(N, I, Ng)
+    float3 ff_norm = faceforward(normal, view_dir, normal);
+    float3 col = ff_norm * 0.5 + 0.5;
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

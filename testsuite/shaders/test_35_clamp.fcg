@@ -1,0 +1,25 @@
+// =============================================================================
+// PS3 RSX Test 35: clamp (Shader Model 3.0 Clamping & Interpolation)
+// Interval clamping (MIN + MAX) bounding animated wave peaks between 0.2 and 0.8
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float wave = sin(input.uv.x * 8.0 - t * 3.0) * 0.5 + 0.5;
+    // Hardware Clamp: MIN(MAX(wave, 0.25), 0.75)
+    float clamped_w = clamp(wave, 0.25, 0.75);
+    
+    float3 col = float3(clamped_w, 0.6, 1.0 - clamped_w);
+    output.color = float4(col, 1.0);
+    return output;
+}

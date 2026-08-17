@@ -1,0 +1,28 @@
+// =============================================================================
+// PS3 RSX Test 26: pow (Shader Model 3.0 Exponential & Logarithmic)
+// Power exponentiation x^y focusing high-specular Phong reflection highlight spot
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float2 light_pos = float2(sin(t * 2.0) * 0.4, cos(t * 2.0) * 0.4);
+    float dist = length(input.uv - light_pos);
+    float base_light = max(0.0, 1.0 - dist * 1.5);
+    
+    // High exponent power curve (Phong specular)
+    float spec = pow(base_light, 16.0);
+    float3 col = float3(spec * 1.0, spec * 0.9, spec * 0.6) + float3(0.05, 0.1, 0.2);
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

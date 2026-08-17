@@ -1,0 +1,25 @@
+// =============================================================================
+// PS3 RSX Test 55: sne / != (Shader Model 3.0 Relational Logic)
+// Hardware SNE (Set on Not Equal) illuminating everywhere except zero-axis line
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float axis_pos = cos(t * 2.0) * 0.5;
+    // Hardware SNE: (abs(uv.y - axis_pos) > 0.03)
+    bool is_ne = abs(input.uv.y - axis_pos) > 0.03;
+    
+    float3 col = is_ne ? float3(0.7, 0.3, 0.8) : float3(0.0, 0.0, 0.0);
+    output.color = float4(col, 1.0);
+    return output;
+}

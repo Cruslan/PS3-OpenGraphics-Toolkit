@@ -1,0 +1,25 @@
+// =============================================================================
+// PS3 RSX Test 32: sign (Shader Model 3.0 Rounding & Truncation)
+// Tri-state Sign function (-1, 0, +1) mapping 4 coordinate quadrants to primary color blocks
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float2 s = sign(input.uv + float2(sin(t) * 0.3, cos(t) * 0.3));
+    
+    // Quadrant mapping: (+1,+1)=Yellow, (-1,+1)=Green, (-1,-1)=Blue, (+1,-1)=Red
+    float3 col = float3(s.x > 0.0 ? 1.0 : 0.0, s.y > 0.0 ? 1.0 : 0.0, s.x < 0.0 ? 1.0 : 0.0);
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

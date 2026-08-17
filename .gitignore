@@ -1,0 +1,39 @@
+# Build output directories
+build/
+testsuite/build/
+
+# Binaries and object files
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# PS3 Homebrew / PSL1GHT build outputs
+*.elf
+*.self
+*.fake.self
+*.pkg
+*.vpo
+*.fpo
+*.d
+*.s
+EBOOT.BIN
+testsuite/EBOOT.BIN
+testsuite/ps3_opengraphics_testsuite.elf
+testsuite/ps3_opengraphics_testsuite.pkg
+testsuite/ps3_opengraphics_testsuite.gnpdrm.pkg
+
+# Toolchain binaries
+rsxcomp/rsxcomp
+rsxdeasm/rsxdeasm
+
+# External SDK and toolchains
+ps3dev/
+
+# Temporary and OS files
+*.tmp
+*.log
+.DS_Store
+Thumbs.db

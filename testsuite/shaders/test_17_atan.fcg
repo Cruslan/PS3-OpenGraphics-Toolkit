@@ -1,0 +1,26 @@
+// =============================================================================
+// PS3 RSX Test 17: atan (Shader Model 3.0 Trigonometry)
+// Inverse tangent function generating smooth S-curve sigmoid saturation
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Normalized input where polynomial approximation produces smooth S-curve
+    float at = atan(input.uv.x * 1.5 + sin(t * 2.0) * 0.5) / 1.570796;
+    float norm_at = clamp(at * 0.5 + 0.5, 0.0, 1.0);
+    
+    // Smooth S-curve chromatic gradient
+    float3 col = float3(norm_at, sin(norm_at * 3.14159265), 1.0 - norm_at);
+    output.color = float4(col, 1.0);
+    return output;
+}

@@ -1,0 +1,30 @@
+// =============================================================================
+// PS3 RSX Test 03: sub / - (Shader Model 3.0 Basic Arithmetic)
+// Mathematical subtraction of dynamic chromatic bands from background gradient
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Smooth base background gradient across NDC UV [-1, 1]
+    float3 base_bg = float3(0.9, 0.85, 0.7);
+    
+    // Moving animated light beam to subtract
+    float beam = max(0.0, 1.0 - abs(input.uv.x - sin(t * 2.0) * 0.7) * 4.0);
+    float3 sub_color = float3(beam * 0.8, beam * 0.5, beam * 0.2);
+    
+    // Evaluate hardware SUB: base_bg - sub_color creates inverted dark shadow band
+    float3 result = base_bg - sub_color;
+    
+    output.color = float4(result, 1.0);
+    return output;
+}

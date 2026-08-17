@@ -1,0 +1,40 @@
+// =============================================================================
+// PS3 RSX Test 19: radians (Shader Model 3.0 Trigonometry)
+// Degree to radian conversion scaling 360-degree compass into 12 circular sectors
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Robust 4-quadrant polar angle computation
+    float2 p = input.uv;
+    float abs_x = abs(p.x) + 1e-5;
+    float abs_y = abs(p.y);
+    float t_max = max(abs_x, abs_y);
+    float t_min = min(abs_x, abs_y);
+    float q = t_min / t_max;
+    float q2 = q * q;
+    float poly = q * (0.97239411 - 0.19194795 * q2);
+    float angle = (abs_y > abs_x) ? (1.5707963 - poly) : poly;
+    if (p.x < 0.0) angle = 3.14159265 - angle;
+    if (p.y < 0.0) angle = -angle;
+    
+    float angle_deg = frac((angle + t * 2.0) / 6.2831853) * 360.0;
+    // Test native radians(deg)
+    float angle_rad = radians(angle_deg);
+    
+    float sector = floor(angle_deg / 30.0) / 12.0;
+    float3 col = float3(sector, sin(angle_rad) * 0.5 + 0.5, cos(angle_rad) * 0.5 + 0.5);
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

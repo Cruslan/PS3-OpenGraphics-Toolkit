@@ -1,0 +1,25 @@
+// =============================================================================
+// PS3 RSX Test 36: saturate (Shader Model 3.0 Clamping & Interpolation)
+// Hardware Output Saturation modifier (_SAT) locking high dynamic range values into [0, 1]
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float raw_val = (input.uv.x + sin(t) * 0.5) * 2.0; // Expands to [-3, +3]
+    // Hardware _SAT bit locks to [0.0, 1.0]
+    float sat_val = saturate(raw_val);
+    
+    float3 col = float3(sat_val, sat_val * 0.8, 1.0 - sat_val);
+    output.color = float4(col, 1.0);
+    return output;
+}

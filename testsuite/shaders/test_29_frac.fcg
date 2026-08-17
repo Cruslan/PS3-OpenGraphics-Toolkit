@@ -1,0 +1,24 @@
+// =============================================================================
+// PS3 RSX Test 29: frac / fract (Shader Model 3.0 Rounding & Truncation)
+// Hardware FRC instruction decomposing coordinate space into repeating sawtooth ramps
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Hardware FRC: x - floor(x)
+    float2 f = frac((input.uv + float2(t * 0.2, t * 0.1)) * 6.0);
+    
+    float3 col = float3(f.x, f.y, 0.5 * (f.x + f.y));
+    output.color = float4(col, 1.0);
+    return output;
+}

@@ -1,0 +1,27 @@
+// =============================================================================
+// PS3 RSX Test 24: log (Shader Model 3.0 Exponential & Logarithmic)
+// Natural logarithm ln(x) producing radial tone-mapping compression rings
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float r = max(length(input.uv) * 8.0, 0.05);
+    // Natural ln(r)
+    float ln_val = saturate((log(r) + 2.0) / 4.0);
+    
+    float pulse = cos(ln_val * 16.0 - t * 4.0) * 0.5 + 0.5;
+    float3 col = float3(ln_val * 0.7, pulse, 0.9 - ln_val * 0.5);
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

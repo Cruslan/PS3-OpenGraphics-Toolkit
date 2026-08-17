@@ -1,0 +1,41 @@
+FRAG
+# Comprehensive test of Mesa TGSI features and RSX Fragment Program translation
+DCL IN[0], COLOR
+DCL IN[1], GENERIC[0]
+DCL CONST[0], lightParams
+IMM[0] FLT32 { 1.0, 0.5, 0.25, 0.0 }
+
+0: SAMPLE TEMP[0], IN[1], SAMP[0], 2D // Texture sampling
+1: TXL TEMP[1], IN[1], SAMP[1], 2D # LOD texture sampling
+2: DDX TEMP[2], TEMP[0]
+3: DDY TEMP[3], TEMP[1]
+
+# Test _SAT modifiers and immediate literals
+4: MOV_SAT TEMP[4], (0.2, 0.4, 0.6, 0.8)
+5: ADD_SAT TEMP[5], TEMP[4], TEMP[0]
+6: MUL_SAT TEMP[6], TEMP[5], (2.0, 2.0, 2.0, 1.0)
+7: MAD_SAT TEMP[7], TEMP[6], TEMP[1], IMM[0]
+
+# Math / arithmetic
+8: DIV TEMP[8], TEMP[7], (1.5, 1.5, 1.5, 1.5)
+9: DP2A TEMP[9], TEMP[8], TEMP[0], TEMP[1]
+10: DP3 TEMP[10], TEMP[9], TEMP[2]
+11: DP4 TEMP[11], TEMP[10], TEMP[3]
+12: MIN TEMP[12], TEMP[11], IMM[0]
+13: MAX TEMP[13], TEMP[12], (0.0, 0.0, 0.0, 0.0)
+14: SLT TEMP[14], TEMP[13], TEMP[4]
+15: SGE TEMP[15], TEMP[14], IN[0]
+16: SEQ TEMP[16], TEMP[15], CONST[0]
+17: FRC TEMP[17], TEMP[16]
+18: FLR TEMP[18], TEMP[17]
+19: EX2 TEMP[19], TEMP[18]
+20: LG2 TEMP[20], TEMP[19]
+21: COS TEMP[21], TEMP[20]
+22: SIN TEMP[22], TEMP[21]
+23: RCP TEMP[23], TEMP[22]
+24: RSQ TEMP[24], TEMP[23]
+25: LIT TEMP[25], TEMP[24]
+26: POW TEMP[26], TEMP[25], IMM[0]
+
+27: MAD OUT[0], TEMP[26], IN[0], IMM[0]
+END

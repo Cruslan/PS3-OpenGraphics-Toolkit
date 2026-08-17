@@ -1,0 +1,25 @@
+// =============================================================================
+// PS3 RSX Test 50: slt / < (Shader Model 3.0 Relational Logic)
+// Hardware SLT (Set on Less Than) splitting diagonal coordinate domains
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float threshold = sin(t * 2.0) * 0.4;
+    // Hardware SLT: (uv.x < uv.y + threshold)
+    bool is_less = input.uv.x < (input.uv.y + threshold);
+    
+    float3 col = is_less ? float3(0.9, 0.2, 0.3) : float3(0.1, 0.7, 0.9);
+    output.color = float4(col, 1.0);
+    return output;
+}

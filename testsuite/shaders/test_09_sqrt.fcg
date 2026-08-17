@@ -1,0 +1,31 @@
+// =============================================================================
+// PS3 RSX Test 09: sqrt (Shader Model 3.0 Basic Arithmetic)
+// Square root instruction pipeline generating parabolic radial gradient profile
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Radial Euclidean distance from center
+    float dist = length(input.uv);
+    
+    // Square root calculation: RSQ + RCP or RSQ + MUL
+    // Parabolic expansion curve mapping [0, 1] distance to concave sqrt gradient
+    float s = sqrt(dist);
+    
+    // Outward-propagating harmonic wave modulated by sqrt curve
+    float wave = sin(s * 12.0 - t * 4.0) * 0.5 + 0.5;
+    float3 col = float3(s, wave, 1.0 - s);
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

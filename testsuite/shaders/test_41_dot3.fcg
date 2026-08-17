@@ -1,0 +1,32 @@
+// =============================================================================
+// PS3 RSX Test 41: dot (3D) (Shader Model 3.0 Vector Algebra)
+// Hardware DP3 3D dot product calculating real-time Lambertian diffuse shaded 3D sphere
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float r_sq = dot(input.uv, input.uv);
+    if (r_sq < 0.64) {
+        float z = sqrt(0.64 - r_sq);
+        float3 normal = normalize(float3(input.uv.x, input.uv.y, z));
+        float3 light_dir = normalize(float3(sin(t * 2.0), cos(t * 2.0), 1.0));
+        
+        // Hardware DP3 for Lambertian diffuse
+        float diff = max(0.0, dot(normal, light_dir));
+        float3 col = float3(0.9, 0.4, 0.2) * diff + float3(0.05, 0.05, 0.1);
+        output.color = float4(col, 1.0);
+    } else {
+        output.color = float4(0.05, 0.05, 0.08, 1.0);
+    }
+    return output;
+}

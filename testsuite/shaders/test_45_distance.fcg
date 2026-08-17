@@ -1,0 +1,29 @@
+// =============================================================================
+// PS3 RSX Test 45: distance (Shader Model 3.0 Vector Algebra)
+// Euclidean distance between two moving orbital attractor points
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float2 p1 = float2(cos(t * 1.5) * 0.5, sin(t * 1.5) * 0.5);
+    float2 p2 = float2(-cos(t * 2.0) * 0.4, -sin(t * 2.0) * 0.4);
+    
+    float d1 = distance(input.uv, p1);
+    float d2 = distance(input.uv, p2);
+    
+    float field = sin((d1 - d2) * 8.0) * 0.5 + 0.5;
+    float3 col = float3(field * 0.8, (1.0 - d1 * 0.5), (1.0 - d2 * 0.5));
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

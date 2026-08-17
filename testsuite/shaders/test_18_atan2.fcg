@@ -1,0 +1,46 @@
+// =============================================================================
+// PS3 RSX Test 18: atan2 (Shader Model 3.0 Trigonometry)
+// 4-Quadrant Arc Tangent computing 360-degree rotating chromatic hue wheel
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Robust 4-quadrant atan2 computation with zero-division immunity
+    float2 p = input.uv;
+    float abs_x = abs(p.x) + 1e-5;
+    float abs_y = abs(p.y);
+    float t_max = max(abs_x, abs_y);
+    float t_min = min(abs_x, abs_y);
+    float q = t_min / t_max;
+    float q2 = q * q;
+    float poly = q * (0.97239411 - 0.19194795 * q2);
+    
+    // Swap angle if |y| > |x| to prevent vertical divergence
+    float angle = (abs_y > abs_x) ? (1.5707963 - poly) : poly;
+    if (p.x < 0.0) angle = 3.14159265 - angle;
+    if (p.y < 0.0) angle = -angle;
+    
+    float norm_angle = frac((angle + t * 2.0) / 6.2831853);
+    
+    // Convert normalized hue to continuous RGB color wheel
+    float r = abs(norm_angle * 6.0 - 3.0) - 1.0;
+    float g = 2.0 - abs(norm_angle * 6.0 - 2.0);
+    float b = 2.0 - abs(norm_angle * 6.0 - 4.0);
+    float3 hue_col = saturate(float3(r, g, b));
+    
+    float rad = saturate(1.0 - length(input.uv));
+    float3 col = hue_col * rad;
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

@@ -1,0 +1,31 @@
+// =============================================================================
+// PS3 RSX Test 04: mul / * (Shader Model 3.0 Basic Arithmetic)
+// Multiplicative color modulation combining rotating 2D grid with radial vignette
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Rotating 2D pattern coordinate
+    float cos_t = cos(t);
+    float sin_t = sin(t);
+    float2 rot_uv = float2(input.uv.x * cos_t - input.uv.y * sin_t, input.uv.x * sin_t + input.uv.y * cos_t);
+    
+    float3 grid_col = float3(sin(rot_uv.x * 8.0) * 0.5 + 0.5, cos(rot_uv.y * 8.0) * 0.5 + 0.5, 0.8);
+    float vignette = max(0.0, 1.0 - length(input.uv) * 0.7);
+    
+    // Evaluate hardware MUL: grid_col * vignette
+    float3 result = grid_col * vignette;
+    
+    output.color = float4(result, 1.0);
+    return output;
+}

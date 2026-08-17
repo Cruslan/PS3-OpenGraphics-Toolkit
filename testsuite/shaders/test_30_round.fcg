@@ -1,0 +1,25 @@
+// =============================================================================
+// PS3 RSX Test 30: round (Shader Model 3.0 Rounding & Truncation)
+// Nearest integer rounding (floor(x + 0.5)) creating discrete color quantization bands
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float r = length(input.uv) * 6.0;
+    // Nearest integer rounding: round(r)
+    float rounded_r = round(r + sin(t) * 0.5) / 6.0;
+    
+    float3 col = float3(rounded_r, 1.0 - rounded_r, frac(rounded_r * 3.0));
+    output.color = float4(col, 1.0);
+    return output;
+}

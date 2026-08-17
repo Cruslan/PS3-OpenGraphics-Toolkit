@@ -1,0 +1,26 @@
+// =============================================================================
+// PS3 RSX Test 10: abs (Shader Model 3.0 Basic Arithmetic)
+// Register Absolute Value modifier generating perfect 4-quadrant mirror kaleidoscope
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Hardware Absolute Bit: abs(input.uv)
+    float2 sym_uv = abs(input.uv);
+    
+    float pattern = sin((sym_uv.x + sym_uv.y) * 12.0 - t * 2.0) * 0.5 + 0.5;
+    float3 col = float3(sym_uv.x, pattern, sym_uv.y);
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

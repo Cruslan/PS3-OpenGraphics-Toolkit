@@ -1,0 +1,27 @@
+// =============================================================================
+// PS3 RSX Test 37: lerp / mix (Shader Model 3.0 Clamping & Interpolation)
+// Linear interpolation (MAD: a + weight*(b - a)) between Cyan and Magenta gradients
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    float3 col_cyan    = float3(0.0, 0.9, 0.9);
+    float3 col_magenta = float3(0.9, 0.0, 0.9);
+    
+    float weight = saturate(input.uv.x * 0.5 + 0.5 + sin(t * 2.0) * 0.2);
+    // Single-cycle MAD interpolation
+    float3 result = lerp(col_cyan, col_magenta, weight);
+    
+    output.color = float4(result, 1.0);
+    return output;
+}
