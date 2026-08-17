@@ -43,7 +43,7 @@ static const TestEntryDefinition g_test_definitions[TOTAL_TESTS] = {
         .visual_desc = "Original RSX Ray Tracing scene: Floor reflections, dynamic shadows, and animated chrome sphere.",
         .is_stub = false,
         .is_sphere_rt = true,
-        .shader_file = "rsxrt.fcg"
+        .shader_file = "test_01_rsxrt.fcg"
     },
     /* 2..55: SM3.0 Intrinsics & Core ALU Operations */
     {

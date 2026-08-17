@@ -43,12 +43,12 @@ FONT_ASM	:= $(BUILD)/font.s
 FONT_OBJ	:= $(BUILD)/font_ttf.o
 
 # RSX GPU Hardware Ray Tracing Shaders
-RSX_VS_SRC	:= shaders/rsxrt.vcg
+RSX_VS_SRC	:= shaders/test_01_rsxrt.vcg
 RSX_VS_BIN	:= $(BUILD)/rsxrt.vpo
 RSX_VS_ASM	:= $(BUILD)/rsxrt_vpo.s
 RSX_VS_OBJ	:= $(BUILD)/rsxrt_vpo.o
 
-RSX_FS_SRC	:= shaders/rsxrt.fcg
+RSX_FS_SRC	:= shaders/test_01_rsxrt.fcg
 RSX_FS_BIN	:= $(BUILD)/rsxrt.fpo
 RSX_FS_ASM	:= $(BUILD)/rsxrt_fpo.s
 RSX_FS_OBJ	:= $(BUILD)/rsxrt_fpo.o
