@@ -1,0 +1,44 @@
+// =============================================================================
+// PS3 RSX Test 60: Vertex Temporary Registers (r0-r31) [Vertex Shader 3.0]
+// Deeply chained vector polynomial evaluation across 32 temporary registers
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Evaluate multi-stage high-order polynomial expansion across temporary vector registers (r0..r31)
+    float2 p = input.uv * 2.0;
+    
+    // Stage 1: Chebyshev polynomial basis vectors
+    float4 r0 = float4(p.x, p.y, p.x * p.x, p.y * p.y);
+    float4 r1 = float4(2.0 * r0.z - 1.0, 2.0 * r0.w - 1.0, r0.x * r0.y, sin(t + p.x));
+    float4 r2 = float4(4.0 * r0.x * r0.z - 3.0 * r0.x, 4.0 * r0.y * r0.w - 3.0 * r0.y, cos(t + p.y), sin(t * 2.0));
+    
+    // Stage 2: Cross-register vector combinations
+    float4 r3 = r0 + r1 * 0.5 + r2 * 0.25;
+    float4 r4 = r3 * r1.wzyx - r2.yxwz * 0.3;
+    float4 r5 = sin(r4 * 3.14159 + t);
+    
+    // Stage 3: Deeply chained vector dot products and harmonic accumulation
+    float val1 = dot(r3.xyz, r5.xyz);
+    float val2 = dot(r4.yzw, r0.yzw);
+    float val3 = sin(val1 * 2.0 + t) * cos(val2 * 2.0 - t);
+    
+    float3 col = float3(
+        sin(val1 + t) * 0.5 + 0.5,
+        cos(val2 + t * 1.5) * 0.5 + 0.5,
+        sin(val3 * 3.0) * 0.5 + 0.5
+    );
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

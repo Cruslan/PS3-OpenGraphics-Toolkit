@@ -1,0 +1,79 @@
+// =============================================================================
+// PS3 RSX Test 83: Bump Environment Mapping (BEM) Matrix Perturbation [SM 3.0]
+// Hardware matrix perturbation & sampling (BEM, TEXBEM, TXPBEM) evaluating
+// 2x2 reflection matrix coordinate transformation over dynamic water ripples
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Normalized screen coordinates
+    float2 p = input.uv * 2.5;
+    
+    // Procedural ripple surface height function: h(x, y, t)
+    float ripple1 = sin(length(p - float2(sin(t * 0.9) * 0.8, cos(t * 0.7) * 0.8)) * 8.0 - t * 4.0);
+    float ripple2 = sin(length(p + float2(cos(t * 0.8) * 0.7, sin(t * 0.6) * 0.7)) * 10.0 - t * 3.5);
+    float ripple3 = sin(p.x * 6.0 + p.y * 6.0 + t * 2.5);
+    
+    float h = (ripple1 + ripple2 * 0.8 + ripple3 * 0.5) * 0.15;
+    
+    // Finite difference gradient: [dh/dx, dh/dy]
+    float eps = 0.01;
+    float h_x = (sin(length((p + float2(eps, 0.0)) - float2(sin(t * 0.9) * 0.8, cos(t * 0.7) * 0.8)) * 8.0 - t * 4.0) - ripple1) / eps;
+    float h_y = (sin(length((p + float2(0.0, eps)) - float2(sin(t * 0.9) * 0.8, cos(t * 0.7) * 0.8)) * 8.0 - t * 4.0) - ripple1) / eps;
+    float2 grad = float2(h_x, h_y) * 0.12;
+    
+    // 2x2 Hardware BEM Perturbation Matrix:
+    // [ M00  M01 ]
+    // [ M10  M11 ]
+    // Rotates and scales the gradient before perturbing texture lookup coordinates
+    float cos_m = cos(t * 0.5);
+    float sin_m = sin(t * 0.5);
+    float bem_scale = 0.35;
+    
+    float M00 =  cos_m * bem_scale;
+    float M01 = -sin_m * bem_scale;
+    float M10 =  sin_m * bem_scale;
+    float M11 =  cos_m * bem_scale;
+    
+    // Hardware BEM Coordinate Transformation: uv' = uv + M * grad
+    float2 perturbed_uv;
+    perturbed_uv.x = input.uv.x + (M00 * grad.x + M01 * grad.y);
+    perturbed_uv.y = input.uv.y + (M10 * grad.x + M11 * grad.y);
+    
+    // Sample dynamic background environment using perturbed coordinates
+    float2 env_coord = perturbed_uv * 3.0;
+    
+    // High-contrast chromatic environment grid backdrop
+    float3 env_color = 0.5 + 0.5 * cos(float3(0.0, 2.0, 4.0) + env_coord.x * 2.0 + env_coord.y * 2.0 + t);
+    
+    float2 check_coord = frac(env_coord);
+    float checker = abs(step(0.5, check_coord.x) - step(0.5, check_coord.y));
+    env_color *= lerp(0.65, 1.0, checker);
+    
+    // Fresnel specular highlight from perturbed normal
+    float3 normal = normalize(float3(-grad.x * 2.0, -grad.y * 2.0, 1.0));
+    float3 light_dir = normalize(float3(0.5, 1.0, 1.5));
+    float3 half_vec = normalize(light_dir + float3(0.0, 0.0, 1.0));
+    float spec = pow(max(0.0, dot(normal, half_vec)), 32.0);
+    
+    // Water tint & caustic illumination
+    float3 water_tint = float3(0.1, 0.45, 0.65);
+    float3 final_color = lerp(env_color, water_tint, 0.25) + float3(1.0, 1.0, 1.0) * spec * 0.75;
+    
+    // Caustic refraction intensity
+    float caustic = pow(clamp(1.0 - length(grad) * 2.5, 0.0, 1.0), 4.0);
+    final_color += float3(0.2, 0.7, 0.9) * caustic * 0.4;
+    
+    output.color = float4(final_color, 1.0);
+    return output;
+}

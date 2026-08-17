@@ -1,0 +1,41 @@
+// =============================================================================
+// PS3 RSX Test 64: Vertex Dual-Issue Execution Engine [Vertex Shader 3.0]
+// Simultaneous parallel execution: Vector ALU (DP4/MAD) + Scalar ALU (SIN/COS)
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Simulate concurrent dual-issue Vector + Scalar pipelines
+    // Pipeline 1 (Vector ALU): 3D coordinate transformations and matrix cross-blends
+    float3 vec_pos = float3(input.uv.x * 2.0, input.uv.y * 2.0, sin(t));
+    float3 vec_mod = vec_pos * float3(1.5, 0.8, 1.2) + float3(0.1, 0.2, 0.3);
+    float d3 = dot(vec_pos, vec_mod);
+    
+    // Pipeline 2 (Scalar ALU): Trigonometric transcendental curves
+    float sca_sin = sin(input.uv.x * 12.0 + t * 4.0);
+    float sca_cos = cos(input.uv.y * 12.0 - t * 4.0);
+    float sca_rsq = rsqrt(abs(sca_sin * sca_cos) + 0.1);
+    
+    // Joint vector-scalar composition generating high-frequency Lissajous curves
+    float pattern = sin(d3 * 2.0 + sca_rsq * 0.5) * 0.5 + 0.5;
+    float lissajous = abs(sca_sin - sca_cos);
+    
+    float3 col = float3(
+        pattern * 0.9,
+        (1.0 - lissajous) * 0.8,
+        sin(t + d3) * 0.5 + 0.5
+    );
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

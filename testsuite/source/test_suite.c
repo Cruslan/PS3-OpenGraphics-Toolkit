@@ -4,7 +4,7 @@
  *
  * Implements GPU shader microcode initialization in RSX GDDR3 VRAM, dynamic parameter
  * binding, D-Pad navigation state machine, full-screen quad presentation,
- * and the visual verification diagnostic banner for all 62 test scenes.
+ * and the visual verification diagnostic banner for all 86 test scenes.
  */
 
 #include <stdio.h>
@@ -45,7 +45,7 @@ typedef struct {
 static rsxVertexProgram* g_rsx_vp = NULL;
 static void*             g_rsx_vp_ucode = NULL;
 static RuntimeShader     g_shaders[TOTAL_TEST_COUNT];
-static int               g_current_test = 1; /* 1-based index (1 to 62) */
+static int               g_current_test = 1; /* 1-based index (1 to 86) */
 static bool              g_is_initialized = false;
 
 /* Animation and Interactive State */
@@ -66,7 +66,7 @@ static inline uint64_t get_time_usec(void) {
 }
 
 /**
- * Initialize all 62 test suite shaders and upload microcode to RSX GDDR3 local memory.
+ * Initialize all 86 test suite shaders and upload microcode to RSX GDDR3 local memory.
  */
 bool test_suite_init(void) {
     if (g_is_initialized) {
@@ -349,7 +349,7 @@ bool test_suite_update_and_render(float delta_time, const GamepadInput* input, f
         }
     } else {
         /* --------------------------------------------------------------------- */
-        /* Tests 2 to 57: Discrete Shader Model 3.0 Conformance Test Scenes      */
+        /* Tests 2 to 68: Discrete Shader Model 3.0 Conformance Test Scenes      */
         /* --------------------------------------------------------------------- */
         if (context && shader->is_valid) {
             float f_time[4] = { g_anim_time, aspect_ratio, input->left_x, input->left_y };

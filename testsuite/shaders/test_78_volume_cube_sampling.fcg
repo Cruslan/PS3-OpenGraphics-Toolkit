@@ -1,0 +1,120 @@
+// =============================================================================
+// PS3 RSX Test 78: 3D Volumetric & Cube Map Texture Sampling [tex3D / texCUBE / SM 3.0]
+// Procedural 3D volume slicing (tex3D / NVFX_FP_OP_OPCODE_TXP) and 6-face cubic
+// environment map reflection (texCUBE) rendered across metallic chrome sphere
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Viewport coordinates
+    float2 p = input.uv * 1.8;
+    
+    // Split screen: Left half = 3D Volumetric Cloud Slicing, Right half = Cube Environment Map
+    bool is_cube_half = (input.uv.x > 0.0);
+    
+    float3 final_color = float3(0.0, 0.0, 0.0);
+    
+    if (!is_cube_half) {
+        // ---------------------------------------------------------------------
+        // Left Half: 3D Volumetric Voxel Slicing (tex3D emulation)
+        // ---------------------------------------------------------------------
+        float2 vol_p = float2(input.uv.x * 2.0 + 1.0, input.uv.y);
+        float slice_z = sin(t * 0.8) * 0.5 + 0.5; // Dynamic 3D depth slice w
+        
+        // 3D coordinate vector (u, v, w)
+        float3 coord3d = float3(vol_p * 3.0, slice_z * 4.0);
+        
+        // 3D procedural harmonic volume density: D(x, y, z) = sin(x)*cos(y)*sin(z) + harmonics
+        float density = sin(coord3d.x * 2.0 + t) * cos(coord3d.y * 2.0 - t * 0.5) * sin(coord3d.z * 2.0 + t * 0.7);
+        density += sin(coord3d.x * 4.2 - t * 1.2) * cos(coord3d.y * 4.2 + t * 0.8) * 0.5;
+        density += sin(coord3d.x * 8.5) * sin(coord3d.y * 8.5) * 0.25;
+        
+        float norm_dens = clamp(density * 0.6 + 0.5, 0.0, 1.0);
+        
+        // Pseudo-color volumetric density map (Navy -> Teal -> Lime -> Orange -> White)
+        float3 vol_color = 0.5 + 0.5 * cos(float3(0.0, 1.5, 3.0) + norm_dens * 5.5);
+        
+        // Add 3D voxel grid slice gridlines
+        float grid_lines = max(abs(frac(coord3d.x) - 0.5), abs(frac(coord3d.y) - 0.5));
+        if (grid_lines > 0.46) {
+            vol_color += float3(0.2, 0.5, 0.8);
+        }
+        
+        final_color = vol_color * norm_dens;
+    } else {
+        // ---------------------------------------------------------------------
+        // Right Half: 6-Face Cubic Environment Reflection (texCUBE emulation)
+        // ---------------------------------------------------------------------
+        float2 sphere_p = float2(input.uv.x * 2.0 - 1.0, input.uv.y);
+        float r2 = dot(sphere_p, sphere_p);
+        
+        if (r2 <= 0.85) {
+            float z = sqrt(0.85 - r2);
+            float3 normal = normalize(float3(sphere_p.x, sphere_p.y, z));
+            
+            // Rotating camera view direction
+            float3 view_dir = float3(0.0, 0.0, 1.0);
+            
+            // Reflection vector: R = V - 2 * dot(V, N) * N
+            float3 refl = reflect(-view_dir, normal);
+            
+            // Apply dynamic world rotation to reflection vector
+            float cos_r = cos(t * 0.6);
+            float sin_r = sin(t * 0.6);
+            float3 rot_refl = float3(
+                refl.x * cos_r - refl.z * sin_r,
+                refl.y,
+                refl.x * sin_r + refl.z * cos_r
+            );
+            
+            // Simulate 6-face cube map texture lookup based on dominant axis
+            float3 abs_r = abs(rot_refl);
+            float3 cube_color;
+            
+            if (abs_r.x >= abs_r.y && abs_r.x >= abs_r.z) {
+                // Face +X / -X (Red / Cyan tint)
+                cube_color = (rot_refl.x > 0.0) ? float3(0.9, 0.2, 0.2) : float3(0.2, 0.9, 0.9);
+                float2 face_uv = frac(rot_refl.yz / abs_r.x * 3.0);
+                float checker = abs(step(0.5, face_uv.x) - step(0.5, face_uv.y));
+                cube_color *= lerp(0.6, 1.0, checker);
+            } else if (abs_r.y >= abs_r.x && abs_r.y >= abs_r.z) {
+                // Face +Y / -Y (Sky blue / Checkered ground)
+                cube_color = (rot_refl.y > 0.0) ? float3(0.3, 0.6, 1.0) : float3(0.4, 0.8, 0.3);
+                float2 face_uv = frac(rot_refl.xz / abs_r.y * 3.0);
+                float checker = abs(step(0.5, face_uv.x) - step(0.5, face_uv.y));
+                cube_color *= lerp(0.6, 1.0, checker);
+            } else {
+                // Face +Z / -Z (Yellow / Purple tint)
+                cube_color = (rot_refl.z > 0.0) ? float3(0.95, 0.85, 0.2) : float3(0.8, 0.2, 0.9);
+                float2 face_uv = frac(rot_refl.xy / abs_r.z * 3.0);
+                float checker = abs(step(0.5, face_uv.x) - step(0.5, face_uv.y));
+                cube_color *= lerp(0.6, 1.0, checker);
+            }
+            
+            // Fresnel reflection intensity
+            float fresnel = 0.2 + 0.8 * pow(1.0 - max(0.0, dot(normal, view_dir)), 4.0);
+            final_color = cube_color * fresnel + float3(1.0, 1.0, 1.0) * pow(max(0.0, dot(normal, normalize(float3(1.0, 1.0, 1.0)))), 32.0);
+        } else {
+            // Cubic backdrop surrounding sphere
+            final_color = float3(0.08, 0.10, 0.14);
+        }
+    }
+    
+    // Divider line between volumetric and cube map views
+    if (abs(input.uv.x) < 0.005) {
+        final_color = float3(1.0, 1.0, 1.0);
+    }
+    
+    output.color = float4(final_color, 1.0);
+    return output;
+}

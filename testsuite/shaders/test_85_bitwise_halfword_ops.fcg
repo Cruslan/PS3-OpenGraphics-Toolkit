@@ -1,0 +1,103 @@
+// =============================================================================
+// PS3 RSX Test 85: 16-Bit Halfword Bitwise Register Operations [SM 3.0]
+// Native 16-bit register bitwise merging (OR16_HI, OR16_LO), integer bitfield masking,
+// XOR Sierpinski fractal evaluation, and bitwise cellular automata logic
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Compute quadrant-local integer pixel coordinates [0..63]
+    float2 local_p = floor(abs(input.uv) * 64.0);
+    
+    bool is_right = (input.uv.x > 0.0);
+    bool is_bottom = (input.uv.y < 0.0);
+    
+    float3 col = float3(0.0, 0.0, 0.0);
+    
+    if (!is_right && !is_bottom) {
+        // ---------------------------------------------------------------------
+        // Top-Left: Direct Closed-Form Sierpinski XOR Carpet (Bit 0..4)
+        // ---------------------------------------------------------------------
+        float u = floor(local_p.x + t * 12.0);
+        float v = floor(local_p.y);
+        
+        float b0 = abs(step(0.5, frac(u * 0.5)) - step(0.5, frac(v * 0.5)));
+        float b1 = abs(step(0.5, frac(u * 0.25)) - step(0.5, frac(v * 0.25)));
+        float b2 = abs(step(0.5, frac(u * 0.125)) - step(0.5, frac(v * 0.125)));
+        float b3 = abs(step(0.5, frac(u * 0.0625)) - step(0.5, frac(v * 0.0625)));
+        float b4 = abs(step(0.5, frac(u * 0.03125)) - step(0.5, frac(v * 0.03125)));
+        
+        float xor_sum = b0 * 1.0 + b1 * 2.0 + b2 * 4.0 + b3 * 8.0 + b4 * 16.0;
+        
+        // Multi-frequency rainbow gradient based on bitwise XOR output
+        col = 0.5 + 0.5 * cos(float3(0.0, 2.0, 4.0) + xor_sum * 0.35 + t * 2.0);
+        if (frac(xor_sum / 4.0) < 0.25) {
+            col = lerp(col, float3(1.0, 0.9, 0.2), 0.7);
+        }
+    } else if (is_right && !is_bottom) {
+        // ---------------------------------------------------------------------
+        // Top-Right: Pure Recursive Sierpinski Triangle (Bitwise AND == 0)
+        // ---------------------------------------------------------------------
+        float u = floor(local_p.x);
+        float v = floor(local_p.y + t * 8.0);
+        
+        float a0 = step(0.5, frac(u * 0.5)) * step(0.5, frac(v * 0.5));
+        float a1 = step(0.5, frac(u * 0.25)) * step(0.5, frac(v * 0.25));
+        float a2 = step(0.5, frac(u * 0.125)) * step(0.5, frac(v * 0.125));
+        float a3 = step(0.5, frac(u * 0.0625)) * step(0.5, frac(v * 0.0625));
+        float a4 = step(0.5, frac(u * 0.03125)) * step(0.5, frac(v * 0.03125));
+        
+        float and_overlap = a0 + a1 + a2 + a3 + a4;
+        
+        if (and_overlap < 0.5) {
+            // Emerald to Cyan gradient over active Sierpinski triangle nodes
+            float diag = (local_p.x + local_p.y) * 0.08;
+            col = lerp(float3(0.1, 0.95, 0.35), float3(0.1, 0.8, 1.0), sin(diag + t * 3.0) * 0.5 + 0.5);
+        } else {
+            // Dark navy background
+            col = float3(0.04, 0.06, 0.12);
+        }
+    } else if (!is_right && is_bottom) {
+        // ---------------------------------------------------------------------
+        // Bottom-Left: 16-bit Halfword Register Bit-Merging (OR16_HI / OR16_LO)
+        // ---------------------------------------------------------------------
+        float lo = frac(local_p.x / 16.0) * 16.0;
+        float hi = frac(local_p.y / 16.0) * 16.0;
+        float merged = lo + hi * 4.0;
+        
+        float stripe = sin(merged * 0.5 + t * 4.0);
+        col = (stripe > 0.0) ? float3(0.1, 0.85, 0.95) : float3(0.95, 0.15, 0.4);
+    } else {
+        // ---------------------------------------------------------------------
+        // Bottom-Right: Bit-Shift Modular Cellular Automata
+        // ---------------------------------------------------------------------
+        float cell = frac((floor(local_p.x * 0.25) + floor(local_p.y * 0.25) + floor(t * 4.0)) / 4.0);
+        if (cell < 0.25) {
+            col = float3(1.0, 0.85, 0.1);
+        } else if (cell < 0.5) {
+            col = float3(0.2, 0.6, 1.0);
+        } else if (cell < 0.75) {
+            col = float3(0.9, 0.2, 0.8);
+        } else {
+            col = float3(0.1, 0.9, 0.5);
+        }
+    }
+    
+    // Crisp white quadrant crosshair divider lines
+    if (abs(input.uv.x) < 0.006 || abs(input.uv.y) < 0.006) {
+        col = float3(1.0, 1.0, 1.0);
+    }
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

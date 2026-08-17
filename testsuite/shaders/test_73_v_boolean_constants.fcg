@@ -1,0 +1,78 @@
+// =============================================================================
+// PS3 RSX Test 73: Vertex Shader Dedicated Boolean Constant Registers [VS 3.0]
+// Static branch condition vectors (b0-b15) dynamically toggling lighting passes,
+// procedural normal displacement, and wireframe contour overlays
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Scale UV coordinates for 3D sphere ray evaluation
+    float2 p = input.uv * 1.5;
+    float r2 = dot(p, p);
+    
+    // Background color
+    if (r2 > 1.0) {
+        output.color = float4(0.06, 0.08, 0.12, 1.0);
+        return output;
+    }
+    
+    // Surface normal and lighting vector
+    float z = sqrt(1.0 - r2);
+    float3 normal = normalize(float3(p.x, p.y, z));
+    float3 light_dir = normalize(float3(sin(t * 1.5), cos(t * 1.5), 0.8));
+    float3 view_dir = float3(0.0, 0.0, 1.0);
+    
+    // Dedicated Boolean Constant Registers (simulating b0-b15 feature flags)
+    // Toggled based on quadrant or parameter switches
+    bool enable_ambient   = true;
+    bool enable_diffuse   = (p.x < 0.0 || p.y > 0.0);
+    bool enable_specular  = (p.y > 0.0);
+    bool enable_rim_light = (p.x > 0.0);
+    
+    // Base material albedo
+    float3 base_color = float3(0.85, 0.75, 0.35);
+    float3 lit_color = float3(0.0, 0.0, 0.0);
+    
+    // 1. Ambient pass (governed by boolean switch b0)
+    if (enable_ambient) {
+        lit_color += base_color * 0.2;
+    }
+    
+    // 2. Diffuse pass (governed by boolean switch b1)
+    if (enable_diffuse) {
+        float n_dot_l = max(0.0, dot(normal, light_dir));
+        lit_color += base_color * n_dot_l * 0.7;
+    }
+    
+    // 3. Specular Blinn-Phong pass (governed by boolean switch b2)
+    if (enable_specular) {
+        float3 half_vec = normalize(light_dir + view_dir);
+        float n_dot_h = max(0.0, dot(normal, half_vec));
+        float spec = pow(n_dot_h, 32.0);
+        lit_color += float3(1.0, 1.0, 1.0) * spec * 0.8;
+    }
+    
+    // 4. Fresnel Rim Light pass (governed by boolean switch b3)
+    if (enable_rim_light) {
+        float rim = pow(1.0 - max(0.0, dot(normal, view_dir)), 3.0);
+        lit_color += float3(0.2, 0.7, 1.0) * rim * 0.9;
+    }
+    
+    // Overlay quadrant partition lines
+    if (abs(p.x) < 0.01 || abs(p.y) < 0.01) {
+        lit_color = float3(1.0, 1.0, 1.0);
+    }
+    
+    output.color = float4(lit_color, 1.0);
+    return output;
+}

@@ -1,0 +1,60 @@
+// =============================================================================
+// PS3 RSX Test 77: Explicit Texture Derivatives & LOD Bias [TXD / TXB / SM 3.0]
+// Manual gradient sampling (tex2Dgrad / TXD with explicit dPdx, dPdy) and continuous
+// LOD bias shifting (tex2Dbias / TXB) demonstrating anisotropic footprint estimation
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Centered coordinates
+    float2 p = input.uv * 2.5;
+    
+    // Rotating distorted sampling coordinates
+    float cos_t = cos(t * 0.4);
+    float sin_t = sin(t * 0.4);
+    float2 rot_p = float2(p.x * cos_t - p.y * sin_t, p.x * sin_t + p.y * cos_t);
+    
+    // Calculate explicit directional derivatives (simulating dPdx, dPdy for TXD)
+    float2 dp_dx = float2(cos_t * 1.5, sin_t * 1.5) * (1.0 + abs(input.uv.x) * 1.5);
+    float2 dp_dy = float2(-sin_t * 0.5, cos_t * 0.5) * (1.0 + abs(input.uv.y) * 1.5);
+    
+    // Evaluate anisotropic elongation rho = max(||dp_dx||, ||dp_dy||)
+    float len_x = length(dp_dx);
+    float len_y = length(dp_dy);
+    float rho = max(len_x, len_y);
+    
+    // Continuous LOD calculation with dynamic uniform bias (simulating TXB)
+    float lod_bias = sin(t * 1.2) * 1.5;
+    float explicit_lod = clamp(log2(max(0.001, rho)) + lod_bias + 1.8, 0.0, 5.0);
+    
+    // Procedural multi-frequency mipmap pyramid color levels via cosine spectrum palette:
+    // LOD 0: Cyan -> LOD 1: Green -> LOD 2: Yellow -> LOD 3: Orange -> LOD 4: Red -> LOD 5: Purple
+    float lod_norm = explicit_lod / 5.0;
+    float3 base_mip = 0.5 + 0.5 * cos(6.28318 * (float3(0.0, 0.33, 0.67) + lod_norm));
+    
+    // Procedural high-frequency checkerboard pattern filtered by explicit derivative footprint
+    // Uses direct fraction evaluation instead of fmod to guarantee exact RSX microcode mapping
+    float freq = 12.0 / pow(2.0, explicit_lod);
+    float2 check_coord = frac(rot_p * freq * 0.5);
+    float check_val = abs(step(0.5, check_coord.x) - step(0.5, check_coord.y));
+    float3 pattern = lerp(base_mip * 0.25, base_mip * 1.35, check_val);
+    
+    // Anisotropic ellipse indicator rings
+    float ellipse = (rot_p.x * rot_p.x) / (len_x * len_x + 0.08) + (rot_p.y * rot_p.y) / (len_y * len_y + 0.08);
+    float ring = abs(frac(ellipse * 2.5) - 0.5);
+    float ring_val = step(ring, 0.08);
+    pattern += float3(1.0, 1.0, 1.0) * ring_val * 0.5;
+    
+    output.color = float4(pattern, 1.0);
+    return output;
+}

@@ -185,4 +185,4 @@ pkg: $(TARGET).elf
 
 clean:
 	@echo "Cleaning testsuite build artifacts..."
-	@gio trash $(TARGET).elf $(TARGET).self $(STD_PKG) $(STD_GNPDRM_PKG) EBOOT.BIN $(BUILD) include/test_suite_data.h source/test_suite_data.c tests/*.vpo tests/*.fpo tests/*_vpo.h tests/*_fpo.h tests/tmp_* $(BUILD)/*.tmp.fpo 2>/dev/null || true
+	@gio trash $(TARGET).elf $(TARGET).self $(STD_PKG) $(STD_GNPDRM_PKG) EBOOT.BIN $(BUILD) $(BUNDLE_BUILDER) $(SHADER_GEN) tests/*.vpo tests/*.fpo tests/*_vpo.h tests/*_fpo.h tests/tmp_* 2>/dev/null || true

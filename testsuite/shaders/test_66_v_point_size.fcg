@@ -1,0 +1,39 @@
+// =============================================================================
+// PS3 RSX Test 66: Vertex Point Size Output (PSIZE / o[1]) [Vertex Shader 3.0]
+// Dynamic per-vertex point size scaling & radial particle sprite rasterization
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Simulate 2D particle array with dynamic vertex point sizes (oPts / PSIZE)
+    float2 grid = frac(input.uv * 4.0) - 0.5;
+    float2 cell = floor(input.uv * 4.0);
+    
+    float cell_id = cell.x * 3.1 + cell.y * 7.3;
+    float psize = 0.25 + 0.15 * sin(cell_id + t * 3.0);
+    
+    // Antialiased circular sprite disc
+    float dist = length(grid);
+    float alpha = smoothstep(psize, psize - 0.05, dist);
+    
+    // Particle color glow modulated by point size
+    float3 glow_col = float3(
+        sin(cell_id * 0.5 + t) * 0.5 + 0.5,
+        cos(cell_id * 0.3 + t * 1.4) * 0.5 + 0.5,
+        0.9
+    );
+    
+    float3 col = glow_col * alpha;
+    output.color = float4(col, 1.0);
+    return output;
+}

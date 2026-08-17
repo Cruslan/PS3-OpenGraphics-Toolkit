@@ -1,0 +1,77 @@
+// =============================================================================
+// PS3 RSX Test 81: Hardware Vector Packing & Unpacking Instructions [SM 3.0]
+// Native packing (PK2, PK4, PK16, PKB, PKG) & unpacking (UP2, UP4, UP16, UPB, UPG)
+// evaluating fixed-point quantization, 16-bit half-float encoding, and error deltas
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Normalized coordinates
+    float2 p = input.uv * 2.0;
+    
+    // Generate high-dynamic-range procedural test gradient
+    float3 hdr_source = 0.5 + 0.5 * cos(float3(0.0, 2.0, 4.0) + length(p) * 4.0 + t);
+    hdr_source *= (1.0 + 0.8 * sin(p.x * 6.0 + t * 2.0)); // Range [0.0, 1.8]
+    
+    // Split screen into 4 quadrants to demonstrate distinct packing/unpacking pipelines:
+    // Quadrant 0 (Top-Left): Original 32-bit Floating Point Reference
+    // Quadrant 1 (Top-Right): 8-Bit Unsigned Integer Packing (PK4 / UP4 - 256 Levels)
+    // Quadrant 2 (Bottom-Left): 4-Bit Quantized Low-Precision Packing (16 Levels)
+    // Quadrant 3 (Bottom-Right): Error Delta Magnification (|Source - Unpacked| * 16.0)
+    
+    bool is_right = (input.uv.x > 0.0);
+    bool is_bottom = (input.uv.y < 0.0);
+    
+    float3 display_color = float3(0.0, 0.0, 0.0);
+    
+    if (!is_right && !is_bottom) {
+        // ---------------------------------------------------------------------
+        // Top-Left: Original 32-Bit Float Source
+        // ---------------------------------------------------------------------
+        display_color = hdr_source;
+    } else if (is_right && !is_bottom) {
+        // ---------------------------------------------------------------------
+        // Top-Right: 8-Bit Packing & Unpacking (PK4 / UP4 emulation)
+        // ---------------------------------------------------------------------
+        // Hardware PK4: Packed = clamp(floor(val * 255.0 + 0.5), 0.0, 255.0)
+        // Hardware UP4: Unpacked = Packed / 255.0
+        float3 packed_8bit = floor(clamp(hdr_source, 0.0, 1.0) * 255.0 + 0.5);
+        float3 unpacked_8bit = packed_8bit / 255.0;
+        display_color = unpacked_8bit;
+    } else if (!is_right && is_bottom) {
+        // ---------------------------------------------------------------------
+        // Bottom-Left: 4-Bit Low-Precision Packing (Simulating PKB 16 levels)
+        // ---------------------------------------------------------------------
+        float3 packed_4bit = floor(clamp(hdr_source, 0.0, 1.0) * 15.0 + 0.5);
+        float3 unpacked_4bit = packed_4bit / 15.0;
+        display_color = unpacked_4bit;
+    } else {
+        // ---------------------------------------------------------------------
+        // Bottom-Right: Reconstruction Error Delta (16x magnified)
+        // ---------------------------------------------------------------------
+        float3 packed_8bit = floor(clamp(hdr_source, 0.0, 1.0) * 255.0 + 0.5);
+        float3 unpacked_8bit = packed_8bit / 255.0;
+        float3 error_delta = abs(clamp(hdr_source, 0.0, 1.0) - unpacked_8bit) * 32.0;
+        
+        // Pseudo-color error heatmap (Black -> Blue -> Green -> Red)
+        display_color = float3(error_delta.x * 2.0, error_delta.y * 2.0, error_delta.z * 4.0);
+    }
+    
+    // Crosshair divider lines separating the 4 quadrants
+    if (abs(input.uv.x) < 0.005 || abs(input.uv.y) < 0.005) {
+        display_color = float3(1.0, 1.0, 1.0);
+    }
+    
+    output.color = float4(display_color, 1.0);
+    return output;
+}

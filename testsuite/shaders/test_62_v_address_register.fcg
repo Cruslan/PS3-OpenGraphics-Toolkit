@@ -1,0 +1,44 @@
+// =============================================================================
+// PS3 RSX Test 62: Vertex Address Register & Relative Indexing (a0.x) [Vertex Shader 3.0]
+// Relative address indexing across discrete harmonic palettes and lookup tables
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Simulate address register relative lookup (ARL/ARR/ARA a0.x, index)
+    // Quantize coordinate to select discrete table offsets
+    float u_norm = input.uv.x * 0.5 + 0.5;
+    float sector_idx = floor(u_norm * 8.0);
+    
+    // Discrete palette entries selected by simulated relative address pointer
+    float3 palette_base;
+    if (sector_idx < 1.0) palette_base = float3(0.9, 0.2, 0.2);
+    else if (sector_idx < 2.0) palette_base = float3(0.9, 0.5, 0.1);
+    else if (sector_idx < 3.0) palette_base = float3(0.9, 0.9, 0.1);
+    else if (sector_idx < 4.0) palette_base = float3(0.2, 0.9, 0.3);
+    else if (sector_idx < 5.0) palette_base = float3(0.1, 0.8, 0.9);
+    else if (sector_idx < 6.0) palette_base = float3(0.2, 0.3, 0.9);
+    else if (sector_idx < 7.0) palette_base = float3(0.7, 0.2, 0.9);
+    else palette_base = float3(0.9, 0.2, 0.6);
+    
+    // Local wave modulation within indexed sector
+    float local_u = frac(u_norm * 8.0);
+    float wave = sin(local_u * 3.14159 + input.uv.y * 6.0 + t * 3.0) * 0.5 + 0.5;
+    
+    // Border separation between indexed address slots
+    float border = step(0.05, local_u) * step(local_u, 0.95);
+    float3 col = palette_base * (wave * 0.6 + 0.4) * border;
+    
+    output.color = float4(col, 1.0);
+    return output;
+}

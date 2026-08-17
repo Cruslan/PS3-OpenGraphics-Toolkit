@@ -1,0 +1,99 @@
+// =============================================================================
+// PS3 RSX Test 69: Multiple Render Targets (MRT / G-Buffer Architecture)
+// Simultaneous 4-target output: Color0 (Diffuse), Color1 (World Normal),
+// Color2 (Specular/Roughness/Metallic), Color3 (Emissive/AO) & Multi-Viewport Preview
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color0 : COLOR0; // Primary output: R0 in RSX microcode
+    float4 color1 : COLOR1; // Secondary render target: R2 in RSX microcode
+    float4 color2 : COLOR2; // Secondary render target: R3 in RSX microcode
+    float4 color3 : COLOR3; // Secondary render target: R4 in RSX microcode
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Scale UV coordinates for 3D procedural sphere projection
+    float2 p = input.uv * 1.5;
+    float r2 = dot(p, p);
+    
+    // 1. Procedural 3D Geometry and World Normals
+    float3 normal;
+    float is_sphere = 0.0;
+    if (r2 <= 1.0) {
+        float z = sqrt(1.0 - r2);
+        normal = normalize(float3(p.x, p.y, z));
+        is_sphere = 1.0;
+    } else {
+        normal = float3(0.0, 0.0, 1.0);
+        is_sphere = 0.0;
+    }
+    
+    // Rotating lighting direction
+    float3 light_dir = normalize(float3(sin(t * 1.5), cos(t * 1.5), 0.8));
+    float n_dot_l = max(0.0, dot(normal, light_dir));
+    
+    // 2. Target 0: Diffuse Albedo Buffer (COLOR0)
+    // Rich procedural material pattern with dynamic chromatic bands
+    float3 checker = float3(0.85, 0.82, 0.75);
+    float check_val = frac((p.x + t * 0.2) * 3.0) + frac(p.y * 3.0);
+    if (check_val > 1.0) {
+        checker = float3(0.2, 0.4, 0.8);
+    }
+    float3 diffuse_albedo = is_sphere ? (checker * (0.3 + 0.7 * n_dot_l)) : float3(0.08, 0.10, 0.15);
+    
+    // 3. Target 1: World Normal Buffer (COLOR1 -> R2)
+    // Compressed into [0, 1] RGB space for hardware render target storage
+    float3 normal_encoded = normal * 0.5 + 0.5;
+    
+    // 4. Target 2: Material Properties Buffer (COLOR2 -> R3)
+    // R: Roughness, G: Metallic, B: Specular Power, A: Cavity
+    float roughness = is_sphere ? 0.35 : 0.9;
+    float metallic = is_sphere ? 0.8 : 0.0;
+    float spec_power = is_sphere ? (32.0 / 256.0) : 0.0;
+    float4 material_props = float4(roughness, metallic, spec_power, 1.0);
+    
+    // 5. Target 3: Emissive & Ambient Occlusion Buffer (COLOR3 -> R4)
+    // R,G,B: Emissive Glow, A: AO coefficient
+    float ao = is_sphere ? (0.5 + 0.5 * normal.z) : 1.0;
+    float3 emissive = is_sphere ? (float3(0.9, 0.3, 0.1) * pow(1.0 - max(0.0, normal.z), 3.0) * (sin(t * 3.0) * 0.5 + 0.5)) : float3(0.0, 0.0, 0.0);
+    float4 emissive_ao = float4(emissive, ao);
+    
+    // 6. Multi-Viewport Split-Screen Composition for COLOR0 (Interactive Verification)
+    // Screen is partitioned into 4 quadrants displaying each G-Buffer target simultaneously:
+    // Top-Left: Diffuse Albedo | Top-Right: Encoded Normal
+    // Bottom-Left: Material Map | Bottom-Right: Emissive + AO
+    float3 preview_color;
+    if (input.uv.y > 0.0) {
+        if (input.uv.x < 0.0) {
+            preview_color = diffuse_albedo; // Top-Left: Albedo
+        } else {
+            preview_color = normal_encoded; // Top-Right: Normals
+        }
+    } else {
+        if (input.uv.x < 0.0) {
+            preview_color = material_props.rgb; // Bottom-Left: Material (Roughness/Metallic)
+        } else {
+            preview_color = emissive_ao.rgb + emissive_ao.a * 0.2; // Bottom-Right: Emissive + AO
+        }
+    }
+    
+    // Thin divider crosshairs along x=0 and y=0
+    if (abs(input.uv.x) < 0.005 || abs(input.uv.y) < 0.008) {
+        preview_color = float3(1.0, 1.0, 1.0);
+    }
+    
+    // Assign discrete outputs to all 4 MRT hardware registers
+    output.color0 = float4(preview_color, 1.0);
+    output.color1 = float4(normal_encoded, 1.0);
+    output.color2 = material_props;
+    output.color3 = emissive_ao;
+    
+    return output;
+}

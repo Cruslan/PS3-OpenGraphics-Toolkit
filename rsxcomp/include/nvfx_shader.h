@@ -44,6 +44,7 @@
 #define NVFXSR_IMM    4
 #define NVFXSR_CONST  5
 #define NVFXSR_RELOCATED 6
+#define NVFXSR_SAMPLER 7
 
 struct nvfx_reg {
     uint8_t type;

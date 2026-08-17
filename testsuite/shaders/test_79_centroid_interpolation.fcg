@@ -1,0 +1,93 @@
+// =============================================================================
+// PS3 RSX Test 79: Centroid MSAA Sub-Pixel Interpolation Qualifier [SM 3.0]
+// Demonstrating centroid attribute modifier evaluation preventing multi-sample
+// sub-pixel edge bleeding and extrapolation errors across sharp geometric boundaries
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Normalized screen coordinates
+    float2 p = input.uv * 2.5;
+    
+    // Left half = Standard Center-Sampled Interpolation (Subject to edge extrapolation bleeding)
+    // Right half = Centroid-Clamped Sub-Pixel Interpolation (Clamped inside polygon coverage)
+    bool is_centroid_mode = (input.uv.x > 0.0);
+    
+    // Rotating geometric triangle polygon vertices
+    float cos_t = cos(t * 0.7);
+    float sin_t = sin(t * 0.7);
+    
+    // Rotate sampling coordinate
+    float2 rot_p = float2(p.x * cos_t - p.y * sin_t, p.x * sin_t + p.y * cos_t);
+    
+    // 4x MSAA Sub-pixel sample position offsets evaluated directly
+    float2 sp0 = rot_p + float2(-0.04, -0.12);
+    float2 sp1 = rot_p + float2( 0.12, -0.04);
+    float2 sp2 = rot_p + float2(-0.12,  0.04);
+    float2 sp3 = rot_p + float2( 0.04,  0.12);
+    
+    // Evaluate coverage mask across 4 sub-pixel samples inside rotated star polygon
+    float c0 = step(length(sp0), 0.85 + 0.35 * cos(atan2(sp0.y, sp0.x) * 5.0 + t));
+    float c1 = step(length(sp1), 0.85 + 0.35 * cos(atan2(sp1.y, sp1.x) * 5.0 + t));
+    float c2 = step(length(sp2), 0.85 + 0.35 * cos(atan2(sp2.y, sp2.x) * 5.0 + t));
+    float c3 = step(length(sp3), 0.85 + 0.35 * cos(atan2(sp3.y, sp3.x) * 5.0 + t));
+    
+    float coverage = (c0 + c1 + c2 + c3) * 0.25;
+    float2 centroid_accum = sp0 * c0 + sp1 * c1 + sp2 * c2 + sp3 * c3;
+    
+    // Calculate effective interpolation evaluation point
+    float2 eval_coord;
+    if (is_centroid_mode) {
+        // Centroid modifier: If pixel center is partially covered, evaluate at centroid of covered samples
+        if (coverage > 0.0) {
+            eval_coord = centroid_accum / (coverage * 4.0);
+        } else {
+            eval_coord = rot_p;
+        }
+    } else {
+        // Standard center sampling: Evaluated strictly at pixel center (may extrapolate outside covered region)
+        eval_coord = rot_p;
+    }
+    
+    // High-frequency color gradient mapped to evaluation coordinate
+    float grad_val = length(eval_coord) * 4.0;
+    float3 poly_color = 0.5 + 0.5 * cos(float3(0.0, 2.0, 4.0) + grad_val + t * 2.0);
+    
+    // Extrapolation error visualizer: If non-centroid sample lies outside coverage, highlight error
+    float center_r = length(rot_p);
+    float center_a = atan2(rot_p.y, rot_p.x);
+    float center_star_r = 0.85 + 0.35 * cos(center_a * 5.0 + t);
+    bool center_outside = (center_r >= center_star_r);
+    
+    float3 final_color;
+    if (coverage > 0.0) {
+        if (!is_centroid_mode && center_outside) {
+            // Extrapolation artifact zone in standard mode (Magenta warning tint)
+            poly_color = lerp(poly_color, float3(1.0, 0.0, 0.8), 0.75);
+        }
+        
+        // Background blend with coverage alpha (MSAA resolve)
+        float3 bg_col = float3(0.06, 0.08, 0.12);
+        final_color = lerp(bg_col, poly_color, coverage);
+    } else {
+        final_color = float3(0.06, 0.08, 0.12);
+    }
+    
+    // Divider line between Standard (Left) and Centroid MSAA (Right)
+    if (abs(input.uv.x) < 0.005) {
+        final_color = float3(1.0, 1.0, 1.0);
+    }
+    
+    output.color = float4(final_color, 1.0);
+    return output;
+}

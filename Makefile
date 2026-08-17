@@ -156,12 +156,14 @@ endif
 	@echo "=================================================="
 
 # ------------------------------------------------------------------------------
-# Check Target (Stub)
-# Future implementation: automated headless CI validation checks and IR linting
+# Check Target
+# Automated host CI validation running all Fragment and Vertex test suites
 # ------------------------------------------------------------------------------
-check:
-	@# STUB: Automated CI conformance validation checks will be added here
-	@echo "[STUB] 'make check' is not implemented yet. Advanced test and verification checks will be added."
+check: $(COMPILER_BIN) $(DISASM_BIN) $(TEST_HARNESS)
+	@echo "=================================================="
+	@echo " Running PS3 Shader Model 3.0 Conformance Harness..."
+	@echo "=================================================="
+	@$(TEST_HARNESS)
 
 # ------------------------------------------------------------------------------
 # Installation Rules

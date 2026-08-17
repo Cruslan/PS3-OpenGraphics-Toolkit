@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 /*
  * PS3 OpenGraphics Toolkit - rsxcomp
  * Offline SPIR-V Binary Parser & RSX Intermediate Representation (IR) Emitter
@@ -14,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 #include "rsx_compiler.h"
 #include "nvfx_shader.h"
 
@@ -153,6 +155,12 @@ typedef struct {
     uint32_t use_count;
     bool is_live;
     bool is_permanent;
+    uint32_t location;
+    bool has_location;
+    uint32_t builtin;
+    bool has_builtin;
+    uint32_t binding;
+    bool has_binding;
 } SpvVar;
 
 typedef struct {
@@ -161,14 +169,14 @@ typedef struct {
 } SpvStructInfo;
 
 static int alloc_temp_reg(uint64_t *free_mask, int *max_used) {
-    for (int i = 1; i < 48; i++) {
+    for (int i = 5; i < 48; i++) {
         if (*free_mask & (1ULL << i)) {
             *free_mask &= ~(1ULL << i);
             if (i > *max_used) *max_used = i;
             return i;
         }
     }
-    return 1;
+    return 5;
 }
 
 static inline void setup_src_swizzle(rsxIRSrc *src, const SpvVar *var) {
@@ -187,7 +195,7 @@ static void release_var_if_dead(SpvVar *v, uint32_t current_inst, uint64_t *free
         v->use_count--;
     }
     if (v->use_count == 0 && v->file == NVFXSR_TEMP && v->is_live) {
-        if (v->index >= 1 && v->index < 48) {
+        if (v->index >= 5 && v->index < 48) {
             *free_mask |= (1ULL << v->index);
         }
         v->is_live = false;
@@ -370,6 +378,23 @@ bool rsx_compiler_parse_spirv(rsxCompilerContext *ctx, const uint32_t *spv_words
         } else if (opcode == SpvOpVectorShuffle) {
             uint32_t vec1_id = (word_len >= 4) ? (swap_endian ? __builtin_bswap32(inst[3]) : inst[3]) : 0;
             if (vec1_id < bound) vars[vec1_id].use_count++;
+        } else if (opcode == SpvOpDecorate) {
+            if (word_len >= 3) {
+                uint32_t target_id = swap_endian ? __builtin_bswap32(inst[1]) : inst[1];
+                uint32_t decoration = swap_endian ? __builtin_bswap32(inst[2]) : inst[2];
+                if (target_id < bound) {
+                    if (decoration == 30 && word_len >= 4) { /* SpvDecorationLocation */
+                        vars[target_id].location = swap_endian ? __builtin_bswap32(inst[3]) : inst[3];
+                        vars[target_id].has_location = true;
+                    } else if (decoration == 11 && word_len >= 4) { /* SpvDecorationBuiltIn */
+                        vars[target_id].builtin = swap_endian ? __builtin_bswap32(inst[3]) : inst[3];
+                        vars[target_id].has_builtin = true;
+                    } else if (decoration == 33 && word_len >= 4) { /* SpvDecorationBinding */
+                        vars[target_id].binding = swap_endian ? __builtin_bswap32(inst[3]) : inst[3];
+                        vars[target_id].has_binding = true;
+                    }
+                }
+            }
         } else if (opcode == SpvOpSelect) {
             for (uint32_t w = 3; w < word_len; w++) {
                 uint32_t ref_id = swap_endian ? __builtin_bswap32(inst[w]) : inst[w];
@@ -380,12 +405,13 @@ bool rsx_compiler_parse_spirv(rsxCompilerContext *ctx, const uint32_t *spv_words
         idx += word_len;
     }
 
-    /* PASS 2: Code Generation with Register Reuse Pool (R0 is reserved exclusively for final output color) */
-    uint64_t free_temp_mask = ~0ULL & ~(1ULL << 0);
-    int max_temp_used = 1;
+    /* PASS 2: Code Generation with Register Reuse Pool (R0..R4 reserved for MRT and depth outputs) */
+    uint64_t free_temp_mask = ~0ULL & ~(0x1FULL);
+    int max_temp_used = 4;
     int next_input_reg = 0;
     int next_output_reg = 0;
     int next_const_reg = 0;
+    int next_sampler_reg = 0;
 
     uint32_t inst_counter = 0;
     cur_block = 0;
@@ -403,6 +429,26 @@ bool rsx_compiler_parse_spirv(rsxCompilerContext *ctx, const uint32_t *spv_words
                 if (word_len >= 2) {
                     uint32_t label_id = swap_endian ? __builtin_bswap32(inst[1]) : inst[1];
                     cur_block = label_id;
+                }
+                break;
+            }
+
+            case SpvOpDecorate: {
+                if (word_len >= 3) {
+                    uint32_t target_id = swap_endian ? __builtin_bswap32(inst[1]) : inst[1];
+                    uint32_t decoration = swap_endian ? __builtin_bswap32(inst[2]) : inst[2];
+                    if (target_id < bound) {
+                        if (decoration == 30 && word_len >= 4) {
+                            vars[target_id].location = swap_endian ? __builtin_bswap32(inst[3]) : inst[3];
+                            vars[target_id].has_location = true;
+                        } else if (decoration == 11 && word_len >= 4) {
+                            vars[target_id].builtin = swap_endian ? __builtin_bswap32(inst[3]) : inst[3];
+                            vars[target_id].has_builtin = true;
+                        } else if (decoration == 33 && word_len >= 4) {
+                            vars[target_id].binding = swap_endian ? __builtin_bswap32(inst[3]) : inst[3];
+                            vars[target_id].has_binding = true;
+                        }
+                    }
                 }
                 break;
             }
@@ -512,6 +558,19 @@ bool rsx_compiler_parse_spirv(rsxCompilerContext *ctx, const uint32_t *spv_words
                     uint32_t res_id = swap_endian ? __builtin_bswap32(inst[1]) : inst[1];
                     if (res_id < bound) {
                         types[res_id].base_type = 4;
+                    }
+                }
+                break;
+            }
+
+            case 25: /* SpvOpTypeImage */
+            case 26: /* SpvOpTypeSampler */
+            case 27: /* SpvOpTypeSampledImage */ {
+                if (word_len >= 2) {
+                    uint32_t res_id = swap_endian ? __builtin_bswap32(inst[1]) : inst[1];
+                    if (res_id < bound) {
+                        types[res_id].base_type = 7; /* sampler/image */
+                        types[res_id].vec_size = 4;
                     }
                 }
                 break;
@@ -628,10 +687,58 @@ bool rsx_compiler_parse_spirv(rsxCompilerContext *ctx, const uint32_t *spv_words
                             }
                         } else if (storage == 3) { /* Output */
                             vars[res_id].file = NVFXSR_OUTPUT;
-                            vars[res_id].index = next_output_reg++;
-                        } else if (storage == 2 || storage == 0) { /* Uniform Block */
+                            if (ctx->type == RSX_PROGRAM_FRAGMENT) {
+                                bool is_depth = (vars[res_id].has_builtin && vars[res_id].builtin == 22 /* FragDepth */) ||
+                                                (strcasestr(vars[res_id].name, "depth") != NULL);
+                                if (is_depth) {
+                                    vars[res_id].index = 1; /* Hardware DEPTH in R1 */
+                                } else if (vars[res_id].has_location) {
+                                    uint32_t loc = vars[res_id].location;
+                                    if (loc == 0) vars[res_id].index = 0;      /* COLOR0 -> R0 */
+                                    else if (loc == 1) vars[res_id].index = 2; /* COLOR1 -> R2 */
+                                    else if (loc == 2) vars[res_id].index = 3; /* COLOR2 -> R3 */
+                                    else if (loc == 3) vars[res_id].index = 4; /* COLOR3 -> R4 */
+                                    else vars[res_id].index = (int16_t)(loc + 1);
+                                } else {
+                                    int out_idx = next_output_reg++;
+                                    if (out_idx == 0) vars[res_id].index = 0;      /* COLOR0 -> R0 */
+                                    else if (out_idx == 1) vars[res_id].index = 2; /* COLOR1 -> R2 */
+                                    else if (out_idx == 2) vars[res_id].index = 3; /* COLOR2 -> R3 */
+                                    else if (out_idx == 3) vars[res_id].index = 4; /* COLOR3 -> R4 */
+                                    else vars[res_id].index = (int16_t)(out_idx + 1);
+                                }
+                            } else {
+                                if (vars[res_id].has_builtin && vars[res_id].builtin == 0 /* Position */) {
+                                    vars[res_id].index = 0; /* oPos */
+                                } else if (vars[res_id].has_builtin && vars[res_id].builtin == 1 /* PointSize */) {
+                                    vars[res_id].index = 7; /* oPSize */
+                                } else if (vars[res_id].has_location) {
+                                    vars[res_id].index = (int16_t)vars[res_id].location;
+                                } else {
+                                    vars[res_id].index = next_output_reg++;
+                                }
+                            }
+                        } else if (storage == 0 && (elem_type_id < bound && types[elem_type_id].base_type == 7)) {
+                            vars[res_id].file = NVFXSR_SAMPLER;
+                            vars[res_id].index = vars[res_id].has_binding ? (int16_t)vars[res_id].binding : (int16_t)(next_sampler_reg++);
+                        } else if (storage == 2 || storage == 0) { /* Uniform Block / Parameter */
                             vars[res_id].file = NVFXSR_CONST;
                             vars[res_id].index = next_const_reg++;
+                            if (ctx->num_constants < RSX_MAX_CONSTANTS) {
+                                rsxCompilerConst *c = &ctx->constants[ctx->num_constants++];
+                                c->index = vars[res_id].index;
+                                if (elem_type_id < bound && types[elem_type_id].base_type == 2) {
+                                    c->type = PARAM_INT4;
+                                } else if (elem_type_id < bound && types[elem_type_id].base_type == 3) {
+                                    c->type = PARAM_BOOL4;
+                                } else {
+                                    c->type = PARAM_FLOAT4;
+                                }
+                                if (vars[res_id].name[0]) {
+                                    strncpy(c->name, vars[res_id].name, sizeof(c->name) - 1);
+                                    c->name[sizeof(c->name) - 1] = '\0';
+                                }
+                            }
                         } else {
                             vars[res_id].file = NVFXSR_TEMP;
                             vars[res_id].index = alloc_temp_reg(&free_temp_mask, &max_temp_used);
@@ -3005,6 +3112,91 @@ bool rsx_compiler_parse_spirv(rsxCompilerContext *ctx, const uint32_t *spv_words
                         if (dy_reg >= 1 && dy_reg < 48) free_temp_mask |= (1ULL << dy_reg);
                         inst_counter++;
                         release_var_if_dead(&vars[op1_id], inst_counter, &free_temp_mask);
+                    }
+                }
+                break;
+            }
+
+            case 86: /* SpvOpSampledImage */ {
+                if (word_len >= 5) {
+                    uint32_t type_id = swap_endian ? __builtin_bswap32(inst[1]) : inst[1];
+                    uint32_t res_id = swap_endian ? __builtin_bswap32(inst[2]) : inst[2];
+                    uint32_t img_id = swap_endian ? __builtin_bswap32(inst[3]) : inst[3];
+                    uint32_t samp_id = swap_endian ? __builtin_bswap32(inst[4]) : inst[4];
+                    if (res_id < bound) {
+                        vars[res_id] = (samp_id < bound && vars[samp_id].file == NVFXSR_SAMPLER) ? vars[samp_id] : ((img_id < bound) ? vars[img_id] : vars[res_id]);
+                        vars[res_id].type_id = type_id;
+                    }
+                }
+                break;
+            }
+
+            case 87: /* SpvOpImageSampleImplicitLod */
+            case 88: /* SpvOpImageSampleExplicitLod */
+            case 89: /* SpvOpImageSampleDrefImplicitLod */
+            case 90: /* SpvOpImageSampleDrefExplicitLod */
+            case 91: /* SpvOpImageSampleProjImplicitLod */
+            case 92: /* SpvOpImageSampleProjExplicitLod */
+            case 93: /* SpvOpImageSampleProjDrefImplicitLod */
+            case 94: /* SpvOpImageSampleProjDrefExplicitLod */
+            case 95: /* SpvOpImageFetch */ {
+                if (word_len >= 5) {
+                    uint32_t type_id = swap_endian ? __builtin_bswap32(inst[1]) : inst[1];
+                    uint32_t res_id = swap_endian ? __builtin_bswap32(inst[2]) : inst[2];
+                    uint32_t sampled_img_id = swap_endian ? __builtin_bswap32(inst[3]) : inst[3];
+                    uint32_t coord_id = swap_endian ? __builtin_bswap32(inst[4]) : inst[4];
+
+                    if (res_id < bound && ctx->num_instructions < RSX_MAX_INSTRUCTIONS) {
+                        vars[res_id].type_id = type_id;
+                        vars[res_id].vec_size = (type_id < bound && types[type_id].vec_size) ? types[type_id].vec_size : 4;
+                        vars[res_id].file = NVFXSR_TEMP;
+                        vars[res_id].index = alloc_temp_reg(&free_temp_mask, &max_temp_used);
+                        vars[res_id].is_live = true;
+
+                        rsxIRInstruction *ir = &ctx->instructions[ctx->num_instructions++];
+                        memset(ir, 0, sizeof(*ir));
+                        if (opcode == 88 || opcode == 90 || opcode == 92 || opcode == 94 || opcode == 95) {
+                            ir->opcode = RSX_IR_OP_TXL;
+                        } else if (opcode == 91 || opcode == 93) {
+                            ir->opcode = RSX_IR_OP_TXP;
+                        } else if (opcode == 89 || opcode == 90 || opcode == 93 || opcode == 94) {
+                            ir->opcode = RSX_IR_OP_SAMPLE_C;
+                        } else {
+                            ir->opcode = RSX_IR_OP_TEX;
+                        }
+
+                        ir->dst.file = vars[res_id].file;
+                        ir->dst.index = vars[res_id].index;
+                        ir->dst.writemask = (vars[res_id].vec_size >= 4) ? 0xFu : (uint8_t)((1u << vars[res_id].vec_size) - 1u);
+
+                        if (coord_id < bound) {
+                            ir->src[0].file = vars[coord_id].file;
+                            ir->src[0].index = vars[coord_id].index;
+                            setup_src_swizzle(&ir->src[0], &vars[coord_id]);
+                        }
+
+                        uint32_t tex_unit = 0;
+                        if (sampled_img_id < bound) {
+                            if (vars[sampled_img_id].has_binding) tex_unit = vars[sampled_img_id].binding;
+                            else if (vars[sampled_img_id].has_location) tex_unit = vars[sampled_img_id].location;
+                            else if (vars[sampled_img_id].index > 0) tex_unit = vars[sampled_img_id].index;
+                        }
+                        ir->tex_unit = (uint8_t)(tex_unit & 0x0F);
+                        ir->tex_target = 2;
+
+                        if (opcode == 89 || opcode == 90 || opcode == 93 || opcode == 94) {
+                            if (word_len >= 6) {
+                                uint32_t dref_id = swap_endian ? __builtin_bswap32(inst[5]) : inst[5];
+                                if (dref_id < bound) {
+                                    ir->src[1].file = vars[dref_id].file;
+                                    ir->src[1].index = vars[dref_id].index;
+                                    setup_src_swizzle(&ir->src[1], &vars[dref_id]);
+                                }
+                            }
+                        }
+
+                        inst_counter++;
+                        if (coord_id < bound) release_var_if_dead(&vars[coord_id], inst_counter, &free_temp_mask);
                     }
                 }
                 break;

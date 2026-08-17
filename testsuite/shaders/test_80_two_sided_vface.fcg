@@ -1,0 +1,105 @@
+// =============================================================================
+// PS3 RSX Test 80: Two-Sided Shading & Front-Facing Register [VFACE / SM 3.0]
+// Hardware primitive orientation evaluation (VFACE / gl_FrontFacing condition mask)
+// rendering dynamic twisting Mobius ribbon with discrete front/back surface shading
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Normalized screen coordinates
+    float2 p = input.uv * 2.2;
+    
+    // Parametric 3D twisting ribbon surface evaluation
+    // Mobius strip parameterization: u in [0, 2*pi], v in [-w, +w]
+    float u = atan2(p.y, p.x) + 3.14159; // Polar angle
+    float r = length(p);
+    
+    // Center radius of the ribbon ring
+    float R0 = 1.05 + 0.15 * sin(t * 1.5);
+    float v = r - R0; // Offset from centerline
+    
+    // Background check outside ribbon width
+    float half_width = 0.38;
+    if (abs(v) > half_width) {
+        float bg_grad = clamp(1.0 - length(input.uv) * 0.7, 0.0, 1.0);
+        output.color = float4(float3(0.05, 0.07, 0.11) * bg_grad, 1.0);
+        return output;
+    }
+    
+    // Dynamic half-twist angle: phi = u * 0.5 + t
+    float phi = u * 0.5 + t * 0.8;
+    
+    // Analytical 3D normal computation for twisting surface
+    float cos_phi = cos(phi);
+    float sin_phi = sin(phi);
+    
+    // Un-normalized surface normal vector in ribbon coordinate frame
+    float3 raw_normal = float3(
+        -sin(u) * sin_phi - cos(u) * cos_phi * 0.5,
+        cos(u) * sin_phi - sin(u) * cos_phi * 0.5,
+        cos_phi
+    );
+    float3 normal = normalize(raw_normal);
+    
+    // View direction vector (orthogonal to screen)
+    float3 view_dir = float3(0.0, 0.0, 1.0);
+    
+    // Hardware VFACE / gl_FrontFacing condition evaluation: dot(normal, view_dir) > 0
+    float n_dot_v = dot(normal, view_dir);
+    bool is_front_facing = (n_dot_v >= 0.0);
+    
+    // Dynamic directional light vector
+    float3 light_dir = normalize(float3(sin(t * 1.2), cos(t * 1.2), 0.85));
+    
+    // Front face vs Back face distinct material shading:
+    // Front Face (VFACE = +1): Electric Cyan Metallic with sharp specular sheen
+    // Back Face  (VFACE = -1): Burnished Copper / Gold with anisotropic grooves
+    float3 lit_color;
+    
+    if (is_front_facing) {
+        // Front-Facing Material: Electric Cyan
+        float3 front_albedo = float3(0.1, 0.85, 0.95);
+        float diff = max(0.0, dot(normal, light_dir));
+        
+        float3 half_vec = normalize(light_dir + view_dir);
+        float spec = pow(max(0.0, dot(normal, half_vec)), 48.0);
+        
+        // Edge contour glow
+        float rim = pow(1.0 - abs(n_dot_v), 3.0);
+        
+        lit_color = front_albedo * (0.2 + 0.8 * diff) + float3(1.0, 1.0, 1.0) * spec * 0.8 + float3(0.3, 0.9, 1.0) * rim * 0.6;
+    } else {
+        // Back-Facing Material: Inverted normal for lighting calculations
+        float3 back_normal = -normal;
+        float3 back_albedo = float3(0.95, 0.45, 0.15); // Burnished copper
+        
+        float diff = max(0.0, dot(back_normal, light_dir));
+        
+        // Anisotropic groove lines along ribbon axis
+        float groove = sin(v * 48.0 + t * 4.0) * 0.5 + 0.5;
+        back_albedo *= (0.7 + 0.3 * groove);
+        
+        float3 half_vec = normalize(light_dir + view_dir);
+        float spec = pow(max(0.0, dot(back_normal, half_vec)), 16.0);
+        
+        lit_color = back_albedo * (0.25 + 0.75 * diff) + float3(1.0, 0.8, 0.4) * spec * 0.5;
+    }
+    
+    // High-contrast boundary seam line separating front and back faces
+    if (abs(n_dot_v) < 0.05) {
+        lit_color = float3(1.0, 1.0, 1.0);
+    }
+    
+    output.color = float4(lit_color, 1.0);
+    return output;
+}

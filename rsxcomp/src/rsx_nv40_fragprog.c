@@ -220,10 +220,11 @@ static uint32_t encode_fp_src(const rsxIRSrc *src) {
 static void rsx_legalize_ir_fragprog(rsxCompilerContext *ctx) {
     if (!ctx || ctx->num_instructions == 0) return;
 
-    int max_temp = 0;
+    int max_temp = 4;
     for (uint32_t i = 0; i < ctx->num_instructions; i++) {
         const rsxIRInstruction *ir = &ctx->instructions[i];
         if (ir->dst.file == NVFXSR_TEMP && ir->dst.index > max_temp) max_temp = ir->dst.index;
+        if (ir->dst.file == NVFXSR_OUTPUT && ir->dst.index > max_temp) max_temp = ir->dst.index;
         for (int s = 0; s < 3; s++) {
             if (ir->src[s].file == NVFXSR_TEMP && ir->src[s].index > max_temp) max_temp = ir->src[s].index;
         }
@@ -305,7 +306,7 @@ bool rsx_nv40_translate_fragprog(rsxCompilerContext *ctx) {
     rsx_legalize_ir_fragprog(ctx);
 
     ctx->ucode_dword_count = 0;
-    int max_temp_used = 0;
+    int max_temp_used = 4;
     uint16_t texcoord_mask = 0;
     uint16_t texcoord2d_mask = 0;
     uint16_t texcoord3d_mask = 0;
@@ -327,12 +328,13 @@ bool rsx_nv40_translate_fragprog(rsxCompilerContext *ctx) {
 
         /* Destination register encoding */
         if (ir->dst.file == NVFXSR_OUTPUT) {
+            if (ir->dst.index > max_temp_used) max_temp_used = ir->dst.index;
             if (ir->dst.index == 1) {
-                /* Depth output register */
+                /* Depth output register (R1 = DEPTH) */
                 ctx->fp_control |= 0x0000000E;
                 hw[0] |= ((uint32_t)(ir->dst.index & 0x3F) << NVFX_FP_OP_OUT_REG_SHIFT);
             } else {
-                /* Full-precision color output (R0 for COLOR0) matching NV40 ROP FP32 expectation */
+                /* Full-precision color outputs: R0 (COLOR0), R2 (COLOR1), R3 (COLOR2), R4 (COLOR3) */
                 hw[0] |= NVFX_FP_OP_PRECISION_FP32;
                 hw[0] |= (((uint32_t)ir->dst.index & 0x3F) << NVFX_FP_OP_OUT_REG_SHIFT);
             }

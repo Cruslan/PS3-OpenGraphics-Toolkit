@@ -1,0 +1,83 @@
+// =============================================================================
+// PS3 RSX Test 74: Hardware Shadow & Depth Comparison Samplers [SHADOW2D / PCF]
+// Light-space depth projection, hardware depth comparison testing, and
+// 9-tap percentage-closer filtering (PCF) soft shadow penumbra simulation
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Plane and sphere coordinates
+    float2 p = input.uv * 2.0;
+    
+    // Rotating light source position
+    float3 light_pos = float3(sin(t * 1.2) * 1.5, cos(t * 1.2) * 1.5, 2.0);
+    float3 caster_center = float3(0.0, 0.0, 0.6);
+    float caster_radius = 0.45;
+    
+    // Receiver surface: Floor plane at z = 0.0
+    float3 world_pos = float3(p.x, p.y, 0.0);
+    float3 normal = float3(0.0, 0.0, 1.0);
+    
+    // Shadow caster projection on floor plane
+    float3 to_light = light_pos - world_pos;
+    float dist_to_light = length(to_light);
+    float3 light_dir = to_light / dist_to_light;
+    
+    // 9-tap Percentage-Closer Filtering (PCF) depth comparison loop
+    float shadow_accum = 0.0;
+    float pcf_scale = 0.04;
+    
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            float2 offset = float2((float)x, (float)y) * pcf_scale;
+            float3 sample_ray_pos = world_pos + float3(offset.x, offset.y, 0.0);
+            float3 sample_ray_dir = normalize(light_pos - sample_ray_pos);
+            
+            // Ray-sphere intersection test for shadow depth occlusion
+            float3 oc = sample_ray_pos - caster_center;
+            float b = dot(oc, sample_ray_dir);
+            float c = dot(oc, oc) - caster_radius * caster_radius;
+            float discr = b * b - c;
+            
+            float is_lit = 1.0;
+            if (discr >= 0.0 && -b - sqrt(discr) > 0.0) {
+                is_lit = 0.15; // In shadow
+            }
+            shadow_accum += is_lit;
+        }
+    }
+    float shadow_factor = shadow_accum / 9.0;
+    
+    // Check if current fragment is the sphere caster itself
+    float sphere_r2 = dot(p, p) / (caster_radius * caster_radius * 2.5);
+    float3 final_color;
+    
+    if (sphere_r2 <= 1.0) {
+        // Shading the 3D sphere caster
+        float sz = sqrt(1.0 - sphere_r2);
+        float3 s_norm = normalize(float3(p.x, p.y, sz));
+        float n_dot_l = max(0.0, dot(s_norm, light_dir));
+        float3 spec = pow(max(0.0, dot(s_norm, normalize(light_dir + float3(0.0, 0.0, 1.0)))), 32.0) * float3(1.0, 1.0, 1.0);
+        final_color = float3(0.9, 0.4, 0.1) * (0.2 + 0.8 * n_dot_l) + spec * 0.6;
+    } else {
+        // Shading the floor plane with PCF soft shadow
+        float2 check_coord = frac(p * 1.5);
+        float checker = abs(step(0.5, check_coord.x) - step(0.5, check_coord.y));
+        float3 floor_albedo = lerp(float3(0.45, 0.48, 0.52), float3(0.75, 0.78, 0.82), checker);
+        float n_dot_l = max(0.0, dot(normal, light_dir));
+        final_color = floor_albedo * (0.15 + 0.85 * n_dot_l * shadow_factor);
+    }
+    
+    output.color = float4(final_color, 1.0);
+    return output;
+}

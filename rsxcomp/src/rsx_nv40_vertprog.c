@@ -33,6 +33,10 @@ static bool is_vp_sca_op(uint32_t op) {
         case RSX_IR_OP_BRA:
         case RSX_IR_OP_CAL:
         case RSX_IR_OP_RET:
+        case RSX_IR_OP_BGNLOOP:
+        case RSX_IR_OP_ENDLOOP:
+        case RSX_IR_OP_BRK:
+        case RSX_IR_OP_CONT:
         case RSX_IR_OP_LG2:
         case RSX_IR_OP_EX2:
         case RSX_IR_OP_SIN:
@@ -50,23 +54,26 @@ static bool is_vp_sca_op(uint32_t op) {
  */
 static uint8_t map_vp_sca_op(uint32_t op) {
     switch (op) {
-        case RSX_IR_OP_RCP:   return NVFX_VP_INST_SCA_OP_RCP;
-        case RSX_IR_OP_RCC:   return NVFX_VP_INST_SCA_OP_RCC;
+        case RSX_IR_OP_RCP:     return NVFX_VP_INST_SCA_OP_RCP;
+        case RSX_IR_OP_RCC:     return NVFX_VP_INST_SCA_OP_RCC;
         case RSX_IR_OP_RSQ:
-        case RSX_IR_OP_SQRT:  return NVFX_VP_INST_SCA_OP_RSQ;
-        case RSX_IR_OP_EXP:   return NVFX_VP_INST_SCA_OP_EXP;
-        case RSX_IR_OP_LOG:   return NVFX_VP_INST_SCA_OP_LOG;
-        case RSX_IR_OP_LIT:   return NVFX_VP_INST_SCA_OP_LIT;
-        case RSX_IR_OP_BRA:   return NVFX_VP_INST_SCA_OP_BRA;
-        case RSX_IR_OP_CAL:   return NVFX_VP_INST_SCA_OP_CAL;
-        case RSX_IR_OP_RET:   return NVFX_VP_INST_SCA_OP_RET;
-        case RSX_IR_OP_LG2:   return NVFX_VP_INST_SCA_OP_LG2;
-        case RSX_IR_OP_EX2:   return NVFX_VP_INST_SCA_OP_EX2;
-        case RSX_IR_OP_SIN:   return NVFX_VP_INST_SCA_OP_SIN;
-        case RSX_IR_OP_COS:   return NVFX_VP_INST_SCA_OP_COS;
-        case RSX_IR_OP_PUSHA: return NV40_VP_INST_SCA_OP_PUSHA;
-        case RSX_IR_OP_POPA:  return NV40_VP_INST_SCA_OP_POPA;
-        default:              return NVFX_VP_INST_SCA_OP_NOP;
+        case RSX_IR_OP_SQRT:    return NVFX_VP_INST_SCA_OP_RSQ;
+        case RSX_IR_OP_EXP:     return NVFX_VP_INST_SCA_OP_EXP;
+        case RSX_IR_OP_LOG:     return NVFX_VP_INST_SCA_OP_LOG;
+        case RSX_IR_OP_LIT:     return NVFX_VP_INST_SCA_OP_LIT;
+        case RSX_IR_OP_BRA:     return NVFX_VP_INST_SCA_OP_BRA;
+        case RSX_IR_OP_CAL:     return NVFX_VP_INST_SCA_OP_CAL;
+        case RSX_IR_OP_RET:     return NVFX_VP_INST_SCA_OP_RET;
+        case RSX_IR_OP_BGNLOOP: return 0x08; /* NV40_VP_INST_SCA_OP_LOOP */
+        case RSX_IR_OP_ENDLOOP: return 0x0A; /* NV40_VP_INST_SCA_OP_REP */
+        case RSX_IR_OP_BRK:     return 0x11; /* NV40_VP_INST_SCA_OP_BRK */
+        case RSX_IR_OP_LG2:     return NVFX_VP_INST_SCA_OP_LG2;
+        case RSX_IR_OP_EX2:     return NVFX_VP_INST_SCA_OP_EX2;
+        case RSX_IR_OP_SIN:     return NVFX_VP_INST_SCA_OP_SIN;
+        case RSX_IR_OP_COS:     return NVFX_VP_INST_SCA_OP_COS;
+        case RSX_IR_OP_PUSHA:   return NV40_VP_INST_SCA_OP_PUSHA;
+        case RSX_IR_OP_POPA:    return NV40_VP_INST_SCA_OP_POPA;
+        default:                return NVFX_VP_INST_SCA_OP_NOP;
     }
 }
 

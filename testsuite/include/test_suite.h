@@ -3,7 +3,7 @@
  * Header Definition and API Specification
  *
  * Manages loading, GPU microcode binding, uniform parameter updates,
- * navigation state machine, and on-screen diagnostics across all 62 test scenes.
+ * navigation state machine, and on-screen diagnostics across all 86 test scenes.
  */
 
 #ifndef __TEST_SUITE_H__
@@ -39,14 +39,14 @@ bool test_suite_init(void);
 bool test_suite_update_and_render(float delta_time, const GamepadInput* input, float fps);
 
 /**
- * Switch directly to a specific test scene index (1-based, 1 to 62).
+ * Switch directly to a specific test scene index (1-based, 1 to 86).
  *
- * @param test_index Target test index (1 <= test_index <= 62).
+ * @param test_index Target test index (1 <= test_index <= 86).
  */
 void test_suite_select_test(int test_index);
 
 /**
- * Retrieve the current active test scene index (1 to 62).
+ * Retrieve the current active test scene index (1 to 86).
  *
  * @return Current 1-based test index.
  */

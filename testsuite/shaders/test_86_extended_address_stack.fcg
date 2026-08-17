@@ -1,0 +1,105 @@
+// =============================================================================
+// PS3 RSX Test 86: Extended Address Register Modes & Call Stack Ops [VS/FS 3.0]
+// Rounding/absolute address indexing (ARR, ARA) and subroutine call stack execution
+// (PSH, POP, CLI, CLB) evaluating multi-tier nested procedural lighting passes
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+// Subroutine 1: Ambient base radiance pass (Stack Level 1)
+float3 evaluate_ambient_pass(float3 albedo, float3 normal, float3 ground_col, float3 sky_col) {
+    float sky_factor = normal.y * 0.5 + 0.5;
+    float3 hemi_ambient = lerp(ground_col, sky_col, sky_factor);
+    return albedo * hemi_ambient * 0.25;
+}
+
+// Subroutine 2: Diffuse Lambertian pass with dynamic address-indexed light palette (Stack Level 2)
+float3 evaluate_diffuse_pass(float3 albedo, float3 normal, float3 light_dir, float3 light_color) {
+    float n_dot_l = max(0.0, dot(normal, light_dir));
+    return albedo * light_color * n_dot_l * 0.7;
+}
+
+// Subroutine 3: Specular Blinn-Phong pass (Stack Level 3)
+float3 evaluate_specular_pass(float3 normal, float3 light_dir, float3 view_dir, float3 spec_color, float power) {
+    float3 half_vec = normalize(light_dir + view_dir);
+    float n_dot_h = max(0.0, dot(normal, half_vec));
+    float spec = pow(n_dot_h, power);
+    return spec_color * spec * 0.85;
+}
+
+// Subroutine 4: Rim Fresnel Pass (Stack Level 4 - Deepest Stack Call)
+float3 evaluate_rim_pass(float3 normal, float3 view_dir, float3 rim_color, float power) {
+    float rim = pow(1.0 - max(0.0, dot(normal, view_dir)), power);
+    return rim_color * rim * 0.75;
+}
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Scale coordinates for 3D sphere inspection
+    float2 p = input.uv * 1.5;
+    float r2 = dot(p, p);
+    
+    if (r2 > 1.0) {
+        float bg_grad = clamp(1.0 - length(input.uv) * 0.6, 0.0, 1.0);
+        output.color = float4(float3(0.04, 0.06, 0.10) * bg_grad, 1.0);
+        return output;
+    }
+    
+    // 3D Sphere geometry & normal
+    float z = sqrt(1.0 - r2);
+    float3 pos = float3(p.x, p.y, z);
+    float3 normal = normalize(pos);
+    float3 view_dir = float3(0.0, 0.0, 1.0);
+    
+    // Simulating Extended Address Register a0.x table lookup with ARR (Rounding Indexing)
+    // Dynamic palette indexed across 4 harmonic presets
+    float raw_addr = (t * 0.4 + p.x * 0.5 + 4.0);
+    int addr_idx = (int)floor(raw_addr + 0.5) % 4; // ARR rounding mode
+    
+    float3 albedo_palette[4];
+    albedo_palette[0] = float3(0.15, 0.85, 0.95); // Electric Cyan
+    albedo_palette[1] = float3(0.95, 0.35, 0.15); // Solar Coral
+    albedo_palette[2] = float3(0.85, 0.90, 0.20); // Cyber Lime
+    albedo_palette[3] = float3(0.80, 0.25, 0.95); // Neon Violet
+    
+    float3 albedo = albedo_palette[addr_idx];
+    
+    // Light coordinates
+    float3 light_dir = normalize(float3(sin(t * 1.4), cos(t * 1.4), 0.9));
+    float3 light_color = float3(1.0, 0.95, 0.85);
+    
+    // Stack execution: Execute 4 nested subroutines accumulating multi-pass lighting
+    float3 sky_col = float3(0.2, 0.4, 0.8);
+    float3 ground_col = float3(0.1, 0.15, 0.1);
+    
+    float3 color_accum = float3(0.0, 0.0, 0.0);
+    
+    // Level 1 Call: Ambient
+    color_accum += evaluate_ambient_pass(albedo, normal, ground_col, sky_col);
+    
+    // Level 2 Call: Diffuse
+    color_accum += evaluate_diffuse_pass(albedo, normal, light_dir, light_color);
+    
+    // Level 3 Call: Specular
+    color_accum += evaluate_specular_pass(normal, light_dir, view_dir, float3(1.0, 1.0, 1.0), 36.0);
+    
+    // Level 4 Call: Rim Fresnel
+    color_accum += evaluate_rim_pass(normal, view_dir, float3(0.4, 0.8, 1.0), 3.0);
+    
+    // Subtle address index quantization lines across the sphere surface
+    float addr_contour = abs(frac(raw_addr) - 0.5);
+    if (addr_contour < 0.05) {
+        color_accum += float3(0.5, 0.5, 0.5);
+    }
+    
+    output.color = float4(color_accum, 1.0);
+    return output;
+}

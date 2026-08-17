@@ -16,7 +16,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define TOTAL_TESTS 57
+#define TOTAL_TESTS 86
 #define MAX_PATH_LEN 1024
 #define MAX_CMD_LEN 2048
 
@@ -606,6 +606,297 @@ static const TestEntryDefinition g_test_definitions[TOTAL_TESTS] = {
         .is_stub = false,
         .is_sphere_rt = false,
         .shader_file = "test_57_discard.fcg"
+    },
+    /* 58..68: Vertex Shader 3.0 Architecture Tests */
+    {
+        .id = 58,
+        .name = "Vertex Input Attributes (v0-v15)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "16 Input Registers (in_mask 0x0000 - 0xFFFF)",
+        .visual_desc = "16-channel vertex input stream bus decoding and multi-attribute projection.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_58_v_input_attributes.fcg"
+    },
+    {
+        .id = 59,
+        .name = "Vertex Output Registers (o0-o15)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "16 Output Registers: Pos (o0), Colors (o2-o3), UVs (o7-o14)",
+        .visual_desc = "Multi-channel rasterizer interpolator routing with simultaneous color and UV streams.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_59_v_output_registers.fcg"
+    },
+    {
+        .id = 60,
+        .name = "Vertex Temporary Registers (r0-r31)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "32 Vector Temporaries (dst_reg & 0x1F allocation)",
+        .visual_desc = "Deeply chained high-order Chebyshev polynomial evaluation across 32 temporary registers.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_60_v_temporary_registers.fcg"
+    },
+    {
+        .id = 61,
+        .name = "Vertex Constant Pool (c0-c467)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "468 Float4 Parameter Pool & Dynamic Offset Table",
+        .visual_desc = "Multi-harmonic uniform constant parameter array indexing and modulation.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_61_v_constant_pool.fcg"
+    },
+    {
+        .id = 62,
+        .name = "Vertex Address Register (a0.x)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "1x a0.x Address Register / ARL, ARR, ARA",
+        .visual_desc = "Relative address indexing across discrete harmonic palettes and lookup tables.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_62_v_address_register.fcg"
+    },
+    {
+        .id = 63,
+        .name = "Vertex Texture Fetch / VTF (s0-s3)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "4 Independent VTF Units / TXL (tex2Dlod) Instruction",
+        .visual_desc = "Topographic elevation field & surface normal relief sampling via vertex texture units.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_63_v_texture_fetch.fcg"
+    },
+    {
+        .id = 64,
+        .name = "Vertex Dual-Issue Engine",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "Simultaneous 1 Vector ALU + 1 Scalar ALU Dual-Issue",
+        .visual_desc = "Parallel single-cycle execution of vector transforms and scalar transcendental curves.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_64_v_dual_issue.fcg"
+    },
+    {
+        .id = 65,
+        .name = "Vertex Predicate Register (p0)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "Condition Code Masking / NVFX_VP_INST_COND_*",
+        .visual_desc = "Zero-overhead conditional execution and condition code bitfield masking.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_65_v_predicate_register.fcg"
+    },
+    {
+        .id = 66,
+        .name = "Vertex Point Size Output (PSIZE)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "Hardware o[1] / Point Size Output Register (oPts)",
+        .visual_desc = "Dynamic per-vertex point size scaling & radial particle sprite rasterization.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_66_v_point_size.fcg"
+    },
+    {
+        .id = 67,
+        .name = "Vertex Fog Factor Output (FOGC)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "Hardware o[5] / Fog Factor Register (oFog)",
+        .visual_desc = "Atmospheric depth haze blending via linear and exponential fog equations.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_67_v_fog_factor.fcg"
+    },
+    {
+        .id = 68,
+        .name = "Vertex Flow Control (Call Stack)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "4-Level Hardware Call Stack / BRA, CAL, RET",
+        .visual_desc = "Multi-pass subroutine invocation accumulating ambient, diffuse & specular light.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_68_v_flow_control.fcg"
+    },
+    {
+        .id = 69,
+        .name = "Multiple Render Targets (MRT / G-Buffer)",
+        .category = "Pixel/Fragment Shader 3.0",
+        .opcode = "Simultaneous 4x MRT ROP Outputs (R0, R2, R3, R4) + DEPTH (R1)",
+        .visual_desc = "4-quadrant deferred G-Buffer preview: Diffuse Albedo, World Normals, Material Map, and Emissive/AO.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_69_mrt_gbuffer.fcg"
+    },
+    {
+        .id = 70,
+        .name = "Dynamic Fragment Flow Control & Branching",
+        .category = "Pixel/Fragment Shader 3.0",
+        .opcode = "Zero-Overhead Condition Code Predication (CMP, SLT, MAD Select)",
+        .visual_desc = "Multi-branch conditional evaluation across divergent SIMD quads comparing fractal loops and Voronoi cells.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_70_dynamic_branching.fcg"
+    },
+    {
+        .id = 71,
+        .name = "Vertex Shader Dynamic Loops (LOOP/REP/BRK)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "Hardware Scalar Loop Engine / LOOP, REP, BRK",
+        .visual_desc = "Multi-octave procedural wave simulation with dynamic loop counter and early-exit break threshold.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_71_v_dynamic_loops.fcg"
+    },
+    {
+        .id = 72,
+        .name = "Dedicated Integer Constants (i0-i15)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "Hardware Integer Vector Constants / PARAM_INT4",
+        .visual_desc = "Discrete integer lattice subdivision, modular indexing, and procedural cellular tile quantization.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_72_v_integer_constants.fcg"
+    },
+    {
+        .id = 73,
+        .name = "Dedicated Boolean Constants (b0-b15)",
+        .category = "Vertex Shader 3.0 Architecture",
+        .opcode = "Hardware Boolean Condition Vectors / PARAM_BOOL4",
+        .visual_desc = "Static branch condition masks dynamically toggling ambient, diffuse, specular, and rim lighting.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_73_v_boolean_constants.fcg"
+    },
+    {
+        .id = 74,
+        .name = "Hardware Shadow & Depth Comparison Samplers",
+        .category = "Texture Sampling & Filtering",
+        .opcode = "Hardware Depth Comparison Samplers / SHADOW2D & PCF",
+        .visual_desc = "Light-space depth projection, depth comparison test, and 9-tap percentage-closer filtering (PCF) soft shadow.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_74_shadow_map_pcf.fcg"
+    },
+    {
+        .id = 75,
+        .name = "Native 3D Geometry & Direct Vertex Shader Execution",
+        .category = "VS3.0 Hardware Pipeline",
+        .opcode = "Direct .vcg binding via rsxVertexProgramLoad / Dynamic 3D Mesh Transform",
+        .visual_desc = "Dynamic 3D parametric torus knot projection with harmonic surface vertex displacement and Blinn-Phong lighting.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_75_native_3d_geometry.fcg"
+    },
+    {
+        .id = 76,
+        .name = "Fragment Shader Custom Depth Output (oDepth)",
+        .category = "Fragment & Z-Buffer Engine",
+        .opcode = "Direct hardware depth replacement write (gl_FragDepth / NVFX_FP_REG_DEPTH / R1.z)",
+        .visual_desc = "Procedural raymarched undulating terrain with custom non-linear depth replacement and isodepth contours.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_76_custom_depth_output.fcg"
+    },
+    {
+        .id = 77,
+        .name = "Explicit Texture Derivatives & LOD Bias (TXD/TXB)",
+        .category = "Texture Sampling Units",
+        .opcode = "Manual gradient sampling (tex2Dgrad / TXD with explicit dPdx, dPdy) & LOD bias (tex2Dbias / TXB)",
+        .visual_desc = "Dynamic anisotropic mip-level gradient visualization displaying explicit dPdx, dPdy directional derivatives and LOD bias shifting.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_77_texture_derivatives_lod.fcg"
+    },
+    {
+        .id = 78,
+        .name = "3D Volumetric & Cube Map Texture Sampling",
+        .category = "Texture Sampling Units",
+        .opcode = "3D volume slicing (tex3D / NVFX_FP_OP_OPCODE_TXP) & cubic environment maps (texCUBE)",
+        .visual_desc = "Procedural 3D volumetric density slice rendering alongside 6-face cubic environment reflection mapped sphere.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_78_volume_cube_sampling.fcg"
+    },
+    {
+        .id = 79,
+        .name = "Centroid MSAA Sub-Pixel Interpolation Qualifier",
+        .category = "Rasterizer & Interpolators",
+        .opcode = "centroid attribute modifier preventing multi-sample sub-pixel edge bleeding",
+        .visual_desc = "Sub-pixel 4x MSAA star polygon edge anti-aliasing contrasting standard center interpolation with centroid clamping.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_79_centroid_interpolation.fcg"
+    },
+    {
+        .id = 80,
+        .name = "Two-Sided Shading & Front-Facing Register (VFACE)",
+        .category = "Rasterizer & Fragment ALU",
+        .opcode = "Hardware primitive orientation bit (VFACE / gl_FrontFacing condition mask)",
+        .visual_desc = "Dynamic 3D twisting Mobius ribbon rendering front faces in electric cyan and back faces in metallic copper.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_80_two_sided_vface.fcg"
+    },
+    {
+        .id = 81,
+        .name = "Hardware Vector Packing & Unpacking Instructions",
+        .category = "Fragment ALU Packing",
+        .opcode = "Native packing (PK2, PK4, PK16, PKB, PKG) & unpacking (UP2, UP4, UP16, UPB, UPG)",
+        .visual_desc = "Real-time 8-bit/4-bit vector quantization and dequantization displaying HDR color compression and error heatmap.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_81_vector_packing_unpacking.fcg"
+    },
+    {
+        .id = 82,
+        .name = "Hardware Lighting & Attenuation Coefficients",
+        .category = "Fragment & Vertex ALU",
+        .opcode = "Native Blinn-Phong lighting evaluator (LIT, LIF) and quadratic distance vector (DST)",
+        .visual_desc = "Multi-light omni and spot illumination evaluating hardware LIT coefficients and DST quadratic distance attenuation.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_82_hardware_lighting_lit_dst.fcg"
+    },
+    {
+        .id = 83,
+        .name = "Bump Environment Mapping (BEM) Matrix Perturbation",
+        .category = "Texture ALU Subsystem",
+        .opcode = "Hardware matrix perturbation & sampling (BEM, TEXBEM, TXPBEM)",
+        .visual_desc = "Dynamic liquid ripple bump mapping perturbing 2x2 reflection matrix coordinates over chromatic environment backdrop.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_83_bump_env_mapping_bem.fcg"
+    },
+    {
+        .id = 84,
+        .name = "Projective Texture Mapping (TXP)",
+        .category = "Texture Sampling Units",
+        .opcode = "Hardware projective coordinate division (u/w, v/w, z/w) via TXP",
+        .visual_desc = "Conical spotlight slide projector casting perspective-divided (u/w, v/w) target grid onto 3D inclined plane.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_84_projective_texture_txp.fcg"
+    },
+    {
+        .id = 85,
+        .name = "16-Bit Halfword Bitwise Register Operations",
+        .category = "Fragment ALU Architecture",
+        .opcode = "Native 16-bit register bitwise merging (OR16_HI, OR16_LO)",
+        .visual_desc = "Procedural bitwise logic gates (AND/OR/XOR/Shift) creating Sierpinski fractals and halfword packed stipple masks.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_85_bitwise_halfword_ops.fcg"
+    },
+    {
+        .id = 86,
+        .name = "Extended Address Register Modes & Call Stack Ops",
+        .category = "Vertex Shader Engine",
+        .opcode = "Rounding/absolute address indexing (ARR, ARA) and subroutine stack ops (PSH, POP, CLI, CLB)",
+        .visual_desc = "Multi-tier nested procedural lighting synthesis utilizing simulated address offset registers and stack subroutine branch levels.",
+        .is_stub = false,
+        .is_sphere_rt = false,
+        .shader_file = "test_86_extended_address_stack.fcg"
     }
 };
 

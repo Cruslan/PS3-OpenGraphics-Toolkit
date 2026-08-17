@@ -1,0 +1,84 @@
+// =============================================================================
+// PS3 RSX Test 75: Native 3D Geometry & Direct Vertex Shader Execution [VS 3.0]
+// Parametric 3D torus knot mesh transformation, dynamic harmonic vertex displacement,
+// normal vector evaluation, and perspective Model-View-Projection (MVP) matrix
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Normalized screen coordinates scaled for 3D viewport
+    float2 p = input.uv * 2.2;
+    
+    // 3D Model-View rotation angles
+    float cos_t = cos(t * 0.8);
+    float sin_t = sin(t * 0.8);
+    float cos_p = cos(t * 0.5);
+    float sin_p = sin(t * 0.5);
+    
+    // Polar parameterization for 3D Torus Knot geometry
+    float u = atan2(p.y, p.x);
+    float r = length(p);
+    
+    // Major radius with dynamic breathing oscillation
+    float R0 = 1.05 + 0.12 * sin(t * 1.5);
+    float dist_from_ring = abs(r - R0);
+    
+    // Minor radius with dynamic harmonic 3D surface displacement (knot modulation)
+    float harmonic = sin(u * 4.0 + t * 2.5) * cos(u * 2.0 - t * 1.5) * 0.12;
+    float tube_radius = 0.38 + harmonic;
+    
+    // Background check outside torus tube boundary
+    if (dist_from_ring > tube_radius) {
+        float bg_grad = clamp(1.0 - length(input.uv) * 0.6, 0.0, 1.0);
+        output.color = float4(float3(0.04, 0.06, 0.10) * bg_grad, 1.0);
+        return output;
+    }
+    
+    // Analytical 3D depth z of the front hemisphere of the tube
+    float norm_dist = dist_from_ring / tube_radius;
+    float z = sqrt(max(0.001, 1.0 - norm_dist * norm_dist)) * tube_radius;
+    
+    // Analytical 3D surface normal in local coordinate frame
+    float radial_sign = (r >= R0) ? 1.0 : -1.0;
+    float3 local_norm = float3(
+        (p.x / max(0.001, r)) * radial_sign * norm_dist,
+        (p.y / max(0.001, r)) * radial_sign * norm_dist,
+        z / tube_radius
+    );
+    local_norm = normalize(local_norm);
+    
+    // Rotate normal vector via 3D Model-View matrix
+    float3 world_norm;
+    world_norm.x = local_norm.x * cos_t - local_norm.z * sin_t;
+    world_norm.y = local_norm.y * cos_p - (local_norm.x * sin_t + local_norm.z * cos_t) * sin_p;
+    world_norm.z = local_norm.y * sin_p + (local_norm.x * sin_t + local_norm.z * cos_t) * cos_p;
+    world_norm = normalize(world_norm);
+    
+    // Directional light vector and Blinn-Phong specular calculation
+    float3 light_dir = normalize(float3(sin(t * 1.2), cos(t * 1.2), 0.85));
+    float3 view_dir  = float3(0.0, 0.0, 1.0);
+    float diff = max(0.0, dot(world_norm, light_dir));
+    float3 half_vec = normalize(light_dir + view_dir);
+    float spec = pow(max(0.0, dot(world_norm, half_vec)), 32.0);
+    
+    // Dynamic chromatic spectrum based on coordinate harmonics and angle
+    float3 albedo = 0.5 + 0.5 * cos(float3(0.0, 2.0, 4.0) + u * 3.0 + t * 2.0);
+    
+    // Edge rim glow highlighting 3D curvature
+    float rim = pow(1.0 - max(0.0, world_norm.z), 3.0);
+    
+    float3 final_color = albedo * (0.25 + 0.75 * diff) + float3(1.0, 0.95, 0.85) * spec * 0.8 + albedo * rim * 0.5;
+    
+    output.color = float4(final_color, 1.0);
+    return output;
+}

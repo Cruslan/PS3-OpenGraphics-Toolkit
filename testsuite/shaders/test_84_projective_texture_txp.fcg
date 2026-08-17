@@ -1,0 +1,135 @@
+// =============================================================================
+// PS3 RSX Test 84: Projective Texture Mapping [TXP / SM 3.0]
+// Hardware projective coordinate division (u/w, v/w, z/w) via TXP evaluating
+// conical frustum slide projector casting dynamic perspective grid onto 3D room
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Normalized screen ray setup (Aspect ratio 16:9 corrected)
+    float3 ro = float3(0.0, 0.8, -2.8);
+    float3 rd = normalize(float3(input.uv.x * 1.3, input.uv.y * 0.8 - 0.15, 1.4));
+    
+    // 3D Room Geometry: Floor Plane (y = -1.0) and Back Wall (z = 3.2)
+    float t_floor = (-1.0 - ro.y) / min(-0.001, rd.y);
+    float t_wall  = (3.2 - ro.z) / max(0.001, rd.z);
+    
+    float t_hit = 100.0;
+    float3 plane_n = float3(0.0, 1.0, 0.0);
+    bool hit_floor = false;
+    
+    if (rd.y < -0.01 && t_floor > 0.0) {
+        t_hit = t_floor;
+        plane_n = float3(0.0, 1.0, 0.0);
+        hit_floor = true;
+    }
+    if (rd.z > 0.01 && t_wall > 0.0 && t_wall < t_hit) {
+        t_hit = t_wall;
+        plane_n = float3(0.0, 0.0, -1.0);
+        hit_floor = false;
+    }
+    
+    float3 hit_pos = ro + rd * t_hit;
+    
+    // Dynamic Spotlight Slide Projector (Simulating TXP Homogenous Coordinates):
+    float3 proj_pos = float3(sin(t * 1.3) * 1.6, 1.2 + cos(t * 0.9) * 0.4, -0.6);
+    float3 proj_target = float3(sin(t * 0.5) * 0.4, -0.4, 1.6);
+    float3 proj_fwd = normalize(proj_target - proj_pos);
+    float3 proj_right = normalize(cross(proj_fwd, float3(0.0, 1.0, 0.0)));
+    float3 proj_up = cross(proj_right, proj_fwd);
+    
+    // Vector from projector lens to surface hit point
+    float3 to_hit = hit_pos - proj_pos;
+    float hit_dist = length(to_hit);
+    float3 light_dir = to_hit / max(0.01, hit_dist);
+    
+    // Projector Homogenous Coordinates: (s, t, r, q) where q = distance along projector optical axis
+    float proj_s = dot(to_hit, proj_right);
+    float proj_t = dot(to_hit, proj_up);
+    float proj_q = dot(to_hit, proj_fwd); // Perspective divisor w
+    
+    // Hardware TXP Division: (u/w, v/w)
+    float2 proj_uv = float2(proj_s, proj_t) / max(0.05, proj_q);
+    
+    // Projector Frustum Bounds: Projected UV inside square [-1.0, +1.0] and q > 0
+    bool in_frustum = (abs(proj_uv.x) <= 1.0 && abs(proj_uv.y) <= 1.0 && proj_q > 0.1);
+    
+    // Base Room Surface Color & Tile Pattern
+    float3 base_color;
+    if (hit_floor) {
+        float2 check_coord = frac(hit_pos.xz);
+        float checker = abs(step(0.5, check_coord.x) - step(0.5, check_coord.y));
+        base_color = lerp(float3(0.10, 0.12, 0.15), float3(0.16, 0.18, 0.22), checker);
+    } else {
+        float2 wall_frac = frac(abs(hit_pos.xy * 2.0));
+        float wall_grid = step(0.05, wall_frac.x) * step(0.05, wall_frac.y);
+        base_color = lerp(float3(0.06, 0.08, 0.12), float3(0.12, 0.14, 0.18), wall_grid);
+    }
+    
+    // Subtle ambient lighting
+    float3 final_color = base_color * 0.35;
+    
+    // Surface normal attenuation
+    float n_dot_l = max(0.0, dot(plane_n, -light_dir));
+    float spot_cone = max(0.0, dot(light_dir, proj_fwd));
+    float spot_falloff = pow(spot_cone, 16.0);
+    
+    if (in_frustum && t_hit < 50.0) {
+        // Synthesize High-Resolution Projected Slide Texture
+        float3 slide_col = float3(0.1, 0.2, 0.35);
+        
+        // 1. Perspective Calibration Grid
+        float2 grid_lines = abs(sin(proj_uv * 12.566)); // 4x4 sub-grid
+        if (grid_lines.x < 0.15 || grid_lines.y < 0.15) {
+            slide_col = float3(0.2, 0.8, 0.95); // Cyan Grid Lines
+        }
+        
+        // 2. Concentric Target Rings
+        float r = length(proj_uv);
+        float ring = abs(sin(r * 18.84 - t * 3.0));
+        if (ring < 0.2 && r < 0.85) {
+            slide_col = lerp(slide_col, float3(1.0, 0.85, 0.1), 0.8); // Golden Rings
+        }
+        
+        // 3. Central Bullseye & Red Crosshairs
+        if (abs(proj_uv.x) < 0.025 || abs(proj_uv.y) < 0.025) {
+            slide_col = float3(1.0, 0.15, 0.15); // Red Crosshairs
+        }
+        if (r < 0.08) {
+            slide_col = float3(1.0, 1.0, 1.0); // White Target Center
+        }
+        
+        // 4. Slide Border Glow
+        float border = max(abs(proj_uv.x), abs(proj_uv.y));
+        if (border > 0.92) {
+            slide_col = float3(1.0, 0.9, 0.5); // Bright Golden Projector Frame
+        }
+        
+        // Dynamic projective illumination intensity
+        float proj_intensity = n_dot_l * spot_falloff * 4.5 / max(1.0, hit_dist * 0.4);
+        final_color += slide_col * proj_intensity;
+    }
+    
+    // Projector lens flare / halo glow when looking towards the projector
+    float3 to_lens = proj_pos - ro;
+    float lens_dist = length(to_lens);
+    float lens_align = max(0.0, dot(rd, to_lens / lens_dist));
+    float lens_flare = pow(lens_align, 64.0) * 1.5;
+    final_color += float3(0.9, 0.95, 1.0) * lens_flare;
+    
+    // Vignette
+    final_color *= (1.0 - length(input.uv) * 0.35);
+    
+    output.color = float4(final_color, 1.0);
+    return output;
+}

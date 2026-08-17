@@ -46,6 +46,11 @@ typedef double   f64;
 #define PARAM_SAMPLER3D         16
 #define PARAM_SAMPLERCUBE       17
 #define PARAM_SAMPLERRECT       18
+#define PARAM_INT               19
+#define PARAM_INT1              20
+#define PARAM_INT2              21
+#define PARAM_INT3              22
+#define PARAM_INT4              23
 #define PARAM_UNKNOWN           0xff
 
 #define RSX_VP_MAGIC            0x5650  /* 'VP' */

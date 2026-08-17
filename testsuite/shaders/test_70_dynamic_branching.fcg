@@ -1,0 +1,85 @@
+// =============================================================================
+// PS3 RSX Test 70: Dynamic Fragment Flow Control & Branching [Pixel Shader 3.0]
+// Multi-branch conditional evaluation across divergent SIMD quads comparing
+// procedural Voronoi cells, fractal branches, and condition code predication
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Polar coordinates for angular sector and radial band branching
+    float2 p = input.uv * 2.5;
+    float r = length(p);
+    float angle = atan2(p.y, p.x);
+    
+    float3 final_color = float3(0.0, 0.0, 0.0);
+    
+    // Branch 1: Inner Core Dynamic Fractal / Harmonic Loop
+    if (r < 0.8) {
+        float f_val = 0.0;
+        float2 cp = p * 2.0;
+        
+        // Dynamic conditional path 1A: High-frequency spiraling harmonic
+        if (sin(angle * 6.0 + t * 2.0) > 0.0) {
+            f_val = sin(cp.x * 5.0 + t) * cos(cp.y * 5.0 - t);
+            final_color = float3(0.95, 0.25, 0.15) * (f_val * 0.5 + 0.5) * (1.0 - r / 0.8);
+        } else {
+            // Dynamic conditional path 1B: Concentric interference rings
+            f_val = sin(r * 25.0 - t * 4.0);
+            final_color = float3(0.15, 0.85, 0.45) * (f_val * 0.5 + 0.5) * (1.0 - r / 0.8);
+        }
+    }
+    // Branch 2: Mid-Ring Dynamic Procedural Checker / Voronoi Zone
+    else if (r < 1.6) {
+        float2 grid = frac(p * 3.0 + float2(sin(t), cos(t)) * 0.5);
+        
+        // Dynamic conditional path 2A: Diagonal quadrant comparison
+        if (grid.x > 0.5 && grid.y > 0.5) {
+            float pulse = sin(t * 3.0 + r * 8.0) * 0.5 + 0.5;
+            final_color = float3(0.1, 0.4, 0.9) * (0.5 + 0.5 * pulse);
+        } else if (grid.x <= 0.5 && grid.y <= 0.5) {
+            float pulse = cos(t * 3.0 + r * 8.0) * 0.5 + 0.5;
+            final_color = float3(0.9, 0.7, 0.1) * (0.5 + 0.5 * pulse);
+        } else {
+            final_color = float3(0.6, 0.1, 0.8);
+        }
+        
+        // Apply smooth boundary attenuation
+        float ring_mask = smoothstep(0.8, 0.85, r) * (1.0 - smoothstep(1.55, 1.6, r));
+        final_color *= ring_mask;
+    }
+    // Branch 3: Outer Horizon Dynamic Starfield & Ray Divergence
+    else {
+        float ray = max(0.0, sin(angle * 12.0 + t) * cos(angle * 8.0 - t * 0.5));
+        float fade = 1.0 / (1.0 + (r - 1.6) * 3.0);
+        
+        // Dynamic conditional path 3A: Directional threshold comparison
+        if (ray > 0.3) {
+            final_color = float3(0.3, 0.9, 0.9) * ray * fade;
+        } else {
+            final_color = float3(0.05, 0.07, 0.12);
+        }
+    }
+    
+    // Add dynamic pulsing bounding circles to delineate branch transition zones
+    float r_edge1 = abs(r - 0.8);
+    float r_edge2 = abs(r - 1.6);
+    if (r_edge1 < 0.015) {
+        final_color += float3(1.0, 1.0, 1.0) * (1.0 - r_edge1 / 0.015);
+    }
+    if (r_edge2 < 0.015) {
+        final_color += float3(1.0, 1.0, 1.0) * (1.0 - r_edge2 / 0.015);
+    }
+    
+    output.color = float4(final_color, 1.0);
+    return output;
+}

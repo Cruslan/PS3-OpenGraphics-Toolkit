@@ -309,12 +309,21 @@ static void parse_dst_reg(const char *str, rsxIRDst *dst) {
     } else if (!strcasecmp(buf, "oPos")) {
         dst->file = NVFXSR_OUTPUT;
         dst->index = 0;
-    } else if (!strcasecmp(buf, "oCol") || !strcasecmp(buf, "oCol0")) {
+    } else if (!strcasecmp(buf, "oCol") || !strcasecmp(buf, "oCol0") || !strcasecmp(buf, "oC0") || !strcasecmp(buf, "COLOR0")) {
+        dst->file = NVFXSR_OUTPUT;
+        dst->index = 0;
+    } else if (!strcasecmp(buf, "oDepth") || !strcasecmp(buf, "oD") || !strcasecmp(buf, "DEPTH")) {
         dst->file = NVFXSR_OUTPUT;
         dst->index = 1;
-    } else if (!strcasecmp(buf, "oCol1") || !strcasecmp(buf, "oBCol0")) {
+    } else if (!strcasecmp(buf, "oCol1") || !strcasecmp(buf, "oBCol0") || !strcasecmp(buf, "oC1") || !strcasecmp(buf, "COLOR1")) {
         dst->file = NVFXSR_OUTPUT;
         dst->index = 2;
+    } else if (!strcasecmp(buf, "oCol2") || !strcasecmp(buf, "oC2") || !strcasecmp(buf, "COLOR2")) {
+        dst->file = NVFXSR_OUTPUT;
+        dst->index = 3;
+    } else if (!strcasecmp(buf, "oCol3") || !strcasecmp(buf, "oC3") || !strcasecmp(buf, "COLOR3")) {
+        dst->file = NVFXSR_OUTPUT;
+        dst->index = 4;
     } else if (!strcasecmp(buf, "oFog")) {
         dst->file = NVFXSR_OUTPUT;
         dst->index = 6;

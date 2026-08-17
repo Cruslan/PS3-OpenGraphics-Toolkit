@@ -1,0 +1,47 @@
+// =============================================================================
+// PS3 RSX Test 65: Vertex Predicate Register (p0) [Vertex Shader 3.0]
+// Zero-overhead conditional execution and condition code bitfield masking
+// =============================================================================
+
+struct FragmentInput {
+    float2 uv : TEXCOORD0;
+};
+
+struct FragmentOutput {
+    float4 color : COLOR0;
+};
+
+FragmentOutput main(FragmentInput input, uniform float4 time_param) {
+    FragmentOutput output;
+    float t = time_param.x;
+    
+    // Predicate condition evaluations (p0.x, p0.y, p0.z, p0.w)
+    bool cond_quadrant_1 = (input.uv.x > 0.0) && (input.uv.y > 0.0);
+    bool cond_quadrant_2 = (input.uv.x <= 0.0) && (input.uv.y > 0.0);
+    bool cond_quadrant_3 = (input.uv.x <= 0.0) && (input.uv.y <= 0.0);
+    bool cond_quadrant_4 = (input.uv.x > 0.0) && (input.uv.y <= 0.0);
+    
+    // Predicated wave computations in each masked sector
+    float3 col = float3(0.0, 0.0, 0.0);
+    
+    if (cond_quadrant_1) {
+        float r = length(input.uv);
+        col = float3(sin(r * 12.0 - t * 3.0) * 0.5 + 0.5, 0.2, 0.3);
+    } else if (cond_quadrant_2) {
+        float w = sin(input.uv.x * 10.0 + t * 2.0) * cos(input.uv.y * 10.0 + t * 2.0);
+        col = float3(0.2, w * 0.5 + 0.5, 0.8);
+    } else if (cond_quadrant_3) {
+        float diag = sin((input.uv.x + input.uv.y) * 8.0 - t * 4.0);
+        col = float3(0.8, diag * 0.5 + 0.5, 0.2);
+    } else {
+        float angle = atan2(input.uv.y, input.uv.x);
+        col = float3(sin(angle * 4.0 + t * 2.0) * 0.5 + 0.5, 0.9, 0.4);
+    }
+    
+    // Axis crosshair dividers
+    float2 axis = step(float2(0.015, 0.015), abs(input.uv));
+    col *= axis.x * axis.y;
+    
+    output.color = float4(col, 1.0);
+    return output;
+}
