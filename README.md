@@ -1,6 +1,6 @@
 # PS3 OpenGraphics Toolkit (`rsxcomp` & `rsxdeasm`)
 
-An open-source (FOSS) standalone offline shader compilation and disassembly toolchain for the Sony PlayStation 3 (Cell Broadband Engine / RSX NV47 GPU), designed as a modern, multiplatform replacement for legacy proprietary NVIDIA Cg tools (`cgc`, `cgc-disasm`).
+An open-source (FOSS) standalone offline shader compilation and disassembly toolchain for the Sony PlayStation 3 (Cell Broadband Engine / RSX NV47 GPU), designed as a modern, open-source replacement for legacy proprietary NVIDIA Cg tools (`cgc`, `cgc-disasm`).
 
 ---
 
@@ -20,7 +20,7 @@ The PlayStation 3 RSX GPU (based on NVIDIA NV47 / G70) requires offline-compiled
 - **100% SM 3.0 Math Coverage**: Complete implementation of all 54 standard Shader Model 3.0 intrinsics and operators.
 - **Branchless Range-Reduced Trigonometry**: Singularity-free minimax polynomial approximations for `atan`, `atan2`, `asin`, `acos`, and `radians`.
 - **Dual-Issue Vertex Scheduling**: Automatically pairs scalar and vector vertex operations for dual-issue execution on RSX VPE hardware.
-- **Cross-Platform**: Builds and runs natively on 64-bit Linux (x86_64, AArch64, RISC-V), macOS, and Windows.
+- **Linux Native**: Builds and runs natively on 64-bit Linux (x86_64, AArch64, RISC-V).
 - **PSL1GHT Compatible**: Outputs and disassembles binary formats 100% compatible with PSL1GHT's `librsx` (`rsxVertexProgram`, `rsxFragmentProgram`, `rsxProgramConst`, `rsxProgramAttrib`).
 - **Bi-Endian Support**: Automatically handles byte-swapping (`htobe16`/`htobe32` and float bitcasting) for PS3 PowerPC runtime execution and decompilation.
 - **C-Header Output**: Generates self-contained static byte arrays directly embeddable in PS3 C/C++ source code.
