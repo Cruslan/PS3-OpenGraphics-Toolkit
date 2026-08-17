@@ -2,6 +2,9 @@
 # PS3 OpenGraphics Shader Decompiler / Disassembler (rsxdeasm)
 # ==============================================================================
 
+CC       ?= gcc
+CFLAGS   ?= -O3 -Wall -Wextra -Wno-pedantic -std=c11
+
 CXX      ?= g++
 CXXFLAGS ?= -O3 -Wall -Wextra -Wno-pedantic -std=c++20
 
@@ -9,20 +12,34 @@ PREFIX   ?= /usr/local
 BINDIR   ?= $(PREFIX)/bin
 DESTDIR  ?=
 
-TARGET   = rsxdeasm
+TARGET       = rsxdeasm
+TARGET_CPP   = rsxdeasm-cpp
 
-SRCS     = src/rsx_disasm.cpp
-OBJS     = $(SRCS:.cpp=.o)
+C_SRCS       = src/rsx_disasm.c
+C_OBJS       = $(C_SRCS:.c=.o)
 
-.PHONY: all clean install uninstall help
+CPP_SRCS     = src/rsx_disasm.cpp
+CPP_OBJS     = $(CPP_SRCS:.cpp=.cpp.o)
+
+.PHONY: all clean install uninstall help cpp
 
 all: $(TARGET)
 
-$(TARGET): $(OBJS)
+$(TARGET): $(C_OBJS)
 	@echo "  [LD]  $@"
-	@$(CXX) $(CXXFLAGS) -o $@ $(OBJS)
+	@$(CC) $(CFLAGS) -o $@ $(C_OBJS)
 
-%.o: %.cpp
+%.o: %.c
+	@echo "  [CC]  $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+cpp: $(TARGET_CPP)
+
+$(TARGET_CPP): $(CPP_OBJS)
+	@echo "  [LD-CXX] $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $(CPP_OBJS)
+
+%.cpp.o: %.cpp
 	@echo "  [CXX] $<"
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -37,12 +54,13 @@ uninstall:
 
 clean:
 	@echo "Cleaning rsxdeasm build artifacts..."
-	@gio trash $(OBJS) $(TARGET) 2>/dev/null || true
+	@gio trash $(C_OBJS) $(CPP_OBJS) $(TARGET) $(TARGET_CPP) 2>/dev/null || true
 
 help:
 	@echo "rsxdeasm Makefile Targets:"
-	@echo "  all       - Build $(TARGET) binary"
+	@echo "  all       - Build standard C $(TARGET) binary (default)"
+	@echo "  cpp       - Build C++ $(TARGET_CPP) binary"
 	@echo "  install   - Install binary to $(DESTDIR)$(BINDIR)"
 	@echo "  uninstall - Remove installed binary"
-	@echo "  clean     - Remove compiled object files and binary"
+	@echo "  clean     - Remove compiled object files and binaries"
 	@echo "  help      - Show this help message"

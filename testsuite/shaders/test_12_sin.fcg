@@ -1,6 +1,6 @@
 // =============================================================================
 // PS3 RSX Test 12: sin (Shader Model 3.0 Trigonometry)
-// Hardware Taylor/Chebyshev Trigonometryc SIN ALU evaluating outward concentric wave ripples
+// Hardware Taylor/Chebyshev Trigonometric SIN ALU evaluating outward concentric wave ripples
 // =============================================================================
 
 struct FragmentInput {

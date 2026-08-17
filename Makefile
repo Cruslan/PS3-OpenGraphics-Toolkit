@@ -3,12 +3,37 @@
 # Modular Offline Shader Compiler (rsxcomp) & Decompiler/Disassembler (rsxdeasm)
 # ==============================================================================
 
+# Export PS3DEV and PSL1GHT environment variables for sub-make invocations
+export PS3DEV    ?= $(CURDIR)/ps3dev
+export PSL1GHT   ?= $(PS3DEV)
+
 CC       ?= gcc
 CFLAGS   ?= -O2 -Wall -Wextra -Irsxcomp/include -std=c11
 
 PREFIX   ?= /usr/local
 BINDIR   ?= $(PREFIX)/bin
 DESTDIR  ?=
+
+# ------------------------------------------------------------------------------
+# PS3 SDK Automated Toolchain Configuration
+# Resolves the precompiled SDK tarball based on the host operating system and CPU architecture.
+# ------------------------------------------------------------------------------
+SDK_RELEASE      ?= nightly-2026-07-26
+HOST_OS          := $(shell uname -s)
+HOST_ARCH        := $(shell uname -m)
+
+ifeq ($(HOST_OS)-$(HOST_ARCH),Darwin-arm64)
+SDK_ASSET        := ps3dev-macos-ARM64.tar.gz
+else ifeq ($(HOST_OS)-$(HOST_ARCH),Darwin-x86_64)
+SDK_ASSET        := ps3dev-macos-X64.tar.gz
+else ifeq ($(HOST_OS)-$(HOST_ARCH),Linux-x86_64)
+SDK_ASSET        := ps3dev-linux-X64.tar.gz
+else
+SDK_ASSET        := unsupported
+endif
+
+SDK_URL          := https://github.com/ps3dev/ps3dev/releases/download/$(SDK_RELEASE)/$(SDK_ASSET)
+SDK_TAR          := $(SDK_ASSET)
 
 # Source module directories
 COMPILER_DIR     = rsxcomp
@@ -106,12 +131,29 @@ test:
 pkg: test
 
 # ------------------------------------------------------------------------------
-# Prepare Target (Stub)
-# Future implementation: automated download and extraction of the isolated ps3dev SDK toolchain
+# Prepare Target
+# Automated download and extraction of the isolated ps3dev SDK toolchain
 # ------------------------------------------------------------------------------
 prepare:
-	@# STUB: Automated PSL1GHT / ps3dev toolchain download routine will be added here
-	@echo "[STUB] 'make prepare' is not implemented yet. Automated SDK provisioning will be added in a future release."
+ifeq ($(SDK_ASSET),unsupported)
+	$(error Unsupported build host: $(HOST_OS)-$(HOST_ARCH))
+endif
+	@echo "=================================================="
+	@echo " Provisioning isolated PS3 SDK ($(SDK_RELEASE))..."
+	@echo " Host Platform: $(HOST_OS)-$(HOST_ARCH) -> $(SDK_ASSET)"
+	@echo " Source URL:    $(SDK_URL)"
+	@echo "=================================================="
+	@echo "Downloading PS3 SDK from $(SDK_URL)..."
+	curl --fail --location --output $(SDK_TAR).tmp $(SDK_URL)
+	mv $(SDK_TAR).tmp $(SDK_TAR)
+	@echo "Extracting PS3 SDK to project directory..."
+	tar -xzf $(SDK_TAR) -C .
+	@echo "Cleaning up archive..."
+	gio trash $(SDK_TAR) 2>/dev/null || true
+	@echo "=================================================="
+	@echo "[SUCCESS] PS3 SDK environment successfully set up in ./ps3dev."
+	@echo "Project is ready. Run 'make' to compile or 'make test' to package."
+	@echo "=================================================="
 
 # ------------------------------------------------------------------------------
 # Check Target (Stub)
@@ -154,7 +196,7 @@ help:
 	@echo "  make all       - Full pipeline: build toolchain, compile shaders, and generate PKG in $(BUILD_DIR)/"
 	@echo "  make test      - Verify prerequisites, compile test shaders, and build PKG in $(BUILD_DIR)/"
 	@echo "  make pkg       - Alias for 'make test'"
-	@echo "  make prepare   - [Stub] Download and configure ps3dev SDK toolchain"
+	@echo "  make prepare   - Download and configure prebuilt ps3dev SDK toolchain"
 	@echo "  make check     - [Stub] Run automated CI/IR verification checks"
 	@echo "  make install   - Install binaries to $(DESTDIR)$(BINDIR)"
 	@echo "  make uninstall - Remove installed binaries"

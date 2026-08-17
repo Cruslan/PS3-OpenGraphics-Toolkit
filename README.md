@@ -24,13 +24,16 @@ The PlayStation 3 RSX GPU (based on NVIDIA NV47 / G70) requires offline-compiled
 - **PSL1GHT Compatible**: Outputs and disassembles binary formats 100% compatible with PSL1GHT's `librsx` (`rsxVertexProgram`, `rsxFragmentProgram`, `rsxProgramConst`, `rsxProgramAttrib`).
 - **Bi-Endian Support**: Automatically handles byte-swapping (`htobe16`/`htobe32` and float bitcasting) for PS3 PowerPC runtime execution and decompilation.
 - **C-Header Output**: Generates self-contained static byte arrays directly embeddable in PS3 C/C++ source code.
-- **Zero Complex Build Dependencies**: Uses a pure standard `Makefile` (no CMake or Python required for base toolchain build).
+- **Zero Complex Build Dependencies**: Uses a pure standard `Makefile` and native C host build utilities (100% C toolchain with no CMake or Python required across the entire repository).
 
 ---
 
 ## Building
 
 ```bash
+# Optional: Download and provision isolated PS3 SDK toolchain (ps3dev)
+make prepare
+
 # Build both compiler (rsxcomp) and decompiler (rsxdeasm) into build/
 make
 

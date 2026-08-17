@@ -1,6 +1,6 @@
 // =============================================================================
 // PS3 RSX Test 13: cos (Shader Model 3.0 Trigonometry)
-// Hardware Trigonometryc COS ALU producing 90-degree phase shifted harmonic moire pattern
+// Hardware Trigonometric COS ALU producing 90-degree phase shifted harmonic moire pattern
 // =============================================================================
 
 struct FragmentInput {

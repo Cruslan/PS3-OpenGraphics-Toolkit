@@ -13,6 +13,7 @@ PPU_AS		:= $(PS3DEV)/ppu/bin/ppu-as
 STRIP		:= $(PS3DEV)/ppu/bin/ppu-strip
 SPRX		:= $(PS3DEV)/bin/sprxlinker
 BIN2S		:= $(PS3DEV)/bin/bin2s
+HOST_CC		?= gcc
 
 # Offline RSX Shader Compiler (PS3-OpenGraphics-Toolkit FOSS alternative)
 PS3_SHADER_COMPILER_DIR ?= $(realpath $(CURDIR)/..)
@@ -31,6 +32,10 @@ OUT_PKG			:= $(BUILD)/$(TARGET)-$(TIMESTAMP).pkg
 OUT_GNPDRM_PKG	:= $(BUILD)/$(TARGET)-$(TIMESTAMP).gnpdrm.pkg
 STD_PKG			:= $(TARGET).pkg
 STD_GNPDRM_PKG	:= $(TARGET).gnpdrm.pkg
+
+# Host C generation utilities
+BUNDLE_BUILDER	:= $(BUILD)/build_test_suite_bundle
+SHADER_GEN		:= $(BUILD)/generate_test_shaders
 
 # Embedded TrueType Font binary
 FONT_SRC	:= data/font.ttf
@@ -65,9 +70,13 @@ LIBS		:= -L$(PS3DEV)/ppu/lib -L$(PS3DEV)/portlibs/ppu/lib \
 			   -lnet -lnetctl -laudio -lcurl -lpolarssl -lrt -llv2 -lm -lz \
 			   -Wl,--end-group
 
-.PHONY: all clean pkg shaders
+.PHONY: all clean pkg shaders prepare generate-shaders
 
 all: pkg
+
+# Forward prepare target to root Makefile to provision the ps3dev SDK
+prepare:
+	@$(MAKE) -C .. prepare
 
 shaders: $(RSX_VS_BIN) $(RSX_FS_BIN) include/test_suite_data.h source/test_suite_data.c
 
@@ -111,10 +120,25 @@ $(RSX_FS_OBJ): $(RSX_FS_ASM)
 	@echo "[PPU-AS] $< -> $@"
 	@$(PPU_AS) $< -o $@
 
+# --- Host C Tool Build Targets ---
+$(BUNDLE_BUILDER): tools/build_test_suite_bundle.c
+	@mkdir -p $(BUILD)
+	@echo "[HOST-CC] $< -> $@"
+	@$(HOST_CC) -O2 -Wall -Wextra $< -o $@
+
+$(SHADER_GEN): tools/generate_test_shaders.c
+	@mkdir -p $(BUILD)
+	@echo "[HOST-CC] $< -> $@"
+	@$(HOST_CC) -O2 -Wall -Wextra $< -o $@
+
+generate-shaders: $(SHADER_GEN)
+	@echo "[GENERATE-SHADERS] Generating shader sources..."
+	@$(SHADER_GEN) --output-dir shaders
+
 # --- Test Suite Bundle Target ---
-include/test_suite_data.h source/test_suite_data.c: scripts/build_test_suite_bundle.py $(wildcard shaders/*.fcg) $(PS3_SHADER_COMPILER)
-	@echo "[PYTHON] Generating test suite data bundle..."
-	@PS3_SHADER_COMPILER="$(PS3_SHADER_COMPILER)" python3 scripts/build_test_suite_bundle.py
+include/test_suite_data.h source/test_suite_data.c: $(BUNDLE_BUILDER) $(wildcard shaders/*.fcg) $(PS3_SHADER_COMPILER)
+	@echo "[BUNDLE-BUILDER] Generating test suite data bundle via native C host tool..."
+	@$(BUNDLE_BUILDER) --rsxcomp "$(PS3_SHADER_COMPILER)" --shaders-dir shaders --include-dir include --source-dir source --build-dir $(BUILD)
 
 # --- PPU Build Targets ---
 $(BUILD)/source/%.o: source/%.c include/common.h include/test_suite.h include/test_suite_data.h
@@ -161,4 +185,4 @@ pkg: $(TARGET).elf
 
 clean:
 	@echo "Cleaning testsuite build artifacts..."
-	@gio trash $(TARGET).elf $(TARGET).self $(STD_PKG) $(STD_GNPDRM_PKG) EBOOT.BIN $(BUILD) include/test_suite_data.h source/test_suite_data.c tests/*.vpo tests/*.fpo tests/*_vpo.h tests/*_fpo.h tests/tmp_* 2>/dev/null || true
+	@gio trash $(TARGET).elf $(TARGET).self $(STD_PKG) $(STD_GNPDRM_PKG) EBOOT.BIN $(BUILD) include/test_suite_data.h source/test_suite_data.c tests/*.vpo tests/*.fpo tests/*_vpo.h tests/*_fpo.h tests/tmp_* $(BUILD)/*.tmp.fpo 2>/dev/null || true

@@ -1,6 +1,6 @@
 // =============================================================================
 // PS3 RSX Test 14: tan (Shader Model 3.0 Trigonometry)
-// Trigonometryc Tangent (sin/cos/rcp/mul) generating periodic asymptotic vertical fringes
+// Trigonometric Tangent (sin/cos/rcp/mul) generating periodic asymptotic vertical fringes
 // =============================================================================
 
 struct FragmentInput {
